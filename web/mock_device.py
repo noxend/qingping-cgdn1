@@ -22,6 +22,7 @@ Not a test oracle: the device's own checks are richer.
 
 import argparse
 import json
+import math
 import os
 import re
 import secrets
@@ -118,6 +119,13 @@ def standard_modules():
             code = open(path, "rb").read()
             out[pid] = (code, json.loads(section(code)))
     return out
+
+
+def magnus_ratio(measured, corrected):
+    """How relative humidity scales when the temperature is corrected, as temp_offset.c does."""
+    def magnus(t):
+        return 17.62 * t / (243.12 + t)
+    return math.exp(magnus(measured) - magnus(corrected))
 
 
 class Device:
@@ -337,11 +345,12 @@ class Handler(BaseHTTPRequestHandler):
                 )
             if path == "/sensors":
                 temp = round(23.4 + d.temp_offset, 1)
+                hum = round(min(41.0 * magnus_ratio(23.4, 23.4 + d.temp_offset), 100.0), 1)
                 return self.reply(
                     200,
                     {
                         "temp": {"valid": True, "value": temp, "age_ms": 900},
-                        "hum": {"valid": True, "value": 41.0, "age_ms": 900},
+                        "hum": {"valid": True, "value": hum, "age_ms": 900},
                         "co2": {"valid": True, "value": 612.0, "age_ms": 1200},
                     },
                 )

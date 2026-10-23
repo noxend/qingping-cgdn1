@@ -111,7 +111,8 @@ Night mode: on or off, the schedule, dim or turn off the screen, and the two bri
 - **Memory for plugins**: how much plugin storage and working memory is used and free.
 - **Temperature**: a correction of -3.0 to +3.0 °C added to the measured temperature, for a device
   that reads warmer or cooler than a thermometer you trust. The panel, the plugins and the web
-  interface all show the corrected value; humidity is shown as measured.
+  interface all show the corrected value. Humidity is recalculated for the corrected temperature,
+  since air that reads warmer than it is also reads drier.
 
 ![The System page](images/web/system.png)
 
