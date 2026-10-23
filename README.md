@@ -6,7 +6,7 @@ small plugin, set up from a web interface.
 
 ![The screens](docs/images/screens/all.png)
 
-![The web interface](docs/images/web/store.png)
+![The web interface, light and dark](docs/images/web/themes.png)
 
 ## What it does
 
