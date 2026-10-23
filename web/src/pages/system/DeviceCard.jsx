@@ -55,7 +55,9 @@ export function DeviceCard({ status }) {
               <AddressLinks status={status} />
             </InfoRow>
           )}
-          <InfoRow label={t("system.firmware")}>{status ? status.fw : "…"}</InfoRow>
+          <InfoRow label={t("system.firmware")} figure>
+            {status ? status.fw : "…"}
+          </InfoRow>
         </InfoList>
 
         <LanguageField />

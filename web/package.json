@@ -9,6 +9,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@fontsource-variable/source-code-pro": "5.3.1",
     "@gravity-ui/icons": "^2.23.0",
     "@heroui/react": "^3.2.6",
     "@heroui/styles": "^3.2.6",
