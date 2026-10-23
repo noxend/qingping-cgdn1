@@ -438,21 +438,34 @@ static void timers_stop(int index) {
 // with a flipped bit: the boot puts back the image's copies, their settings kept.
 static void unreadable_standard(void) {
   cJSON *root = plugins();
-  check(strcmp(state_of(root, "co2"), "ready") == 0 &&
-            strcmp(state_of(root, "humidity"), "ready") == 0,
-        "standard plugins whose module does not read run from the image");
+  check(strcmp(state_of(root, "co2"), "failed") == 0 &&
+            strcmp(state_of(root, "humidity"), "failed") == 0,
+        "standard plugins whose module does not read are listed failed at boot");
+  cJSON_Delete(root);
+  for (int t = 0; t < WASM_RESTORE_AFTER_TICKS - 1; t++) {
+    wasm_host_tick();
+  }
+  root = plugins();
+  check(strcmp(state_of(root, "co2"), "failed") == 0 &&
+            strcmp(state_of(root, "humidity"), "failed") == 0,
+        "and left alone while the board comes up");
+  cJSON_Delete(root);
+  check(post_id("/plugins/remove", "humidity") == 202, "one of them is deleted meanwhile");
+  wasm_host_tick();  // the deletion
+  wasm_host_tick();
+  wasm_host_tick();
+  root = plugins();
+  check(strcmp(state_of(root, "co2"), "ready") == 0, "then the tick runs the other from the image");
+  check(!installed(root, "humidity"), "and the deleted one stays deleted");
   cJSON_Delete(root);
   char value[8];
   settings_get("co2", "alarm", value, sizeof(value), "");
-  check(strcmp(value, "1") == 0, "and keep their settings");
+  check(strcmp(value, "1") == 0, "and it keeps its settings");
   uint8_t *code = NULL;
   uint32_t len = 0;
   bool co2 = store_read("co2", &code, &len, malloc, free) == STORE_OK;
   free(code);
-  code = NULL;
-  bool humidity = store_read("humidity", &code, &len, malloc, free) == STORE_OK;
-  free(code);
-  check(co2 && humidity, "and their modules read from flash again");
+  check(co2, "and its module reads from flash again");
 }
 
 static void nothing(void) {

@@ -20,10 +20,15 @@ typedef struct {
 // first time. Once, on the UI loop, before the core shows a screen.
 void wasm_host_init(const wasm_host_hooks_t *hooks);
 
-// From the UI loop, once a second: does a requested deletion or an install. Returns the
-// table index that now holds another plugin or none, so the core re-reads its screens;
-// else -1.
+// From the UI loop, once a second: does a requested deletion or an install, or, from
+// WASM_RESTORE_AFTER_TICKS on, puts back a standard plugin whose stored module did not
+// read at boot. Returns the table index that now holds another plugin or none, so the
+// core re-reads its screens; else -1.
 int wasm_host_tick(void);
+
+// Ticks after boot before a standard plugin is restored: the network and the first
+// screens are up by then, and the restore runs as an install from the web page does.
+#define WASM_RESTORE_AFTER_TICKS 30
 
 // GET /plugins, POST /plugins/upload (the module itself), POST /plugins/install {"id"} (a
 // standard plugin, from its copy in the image), POST /plugins/remove {"id"}, all four
