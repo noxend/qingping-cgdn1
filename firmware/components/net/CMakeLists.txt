@@ -2,7 +2,7 @@
 # signed release channels (the web manifest, the firmware manifest and its updater).
 # Results reach the screens through the callback they pass.
 idf_component_register(SRCS "net.c" "core_net.c" "signed_envelope.c" "web_manifest.c"
-                            "fw_manifest.c" "fw_update.c" "dns_answer.c"
+                            "fw_manifest.c" "fw_update.c" "dns_answer.c" "time_zone.c"
                        INCLUDE_DIRS "."
                        EMBED_TXTFILES "web_manifest_pub.pem"
                        REQUIRES plugin_sdk

@@ -300,9 +300,9 @@ What the stock firmware does (app image, addresses at run time):
 - `System_Power_Off`: logs, drives GPIO23 low (`0x400e9514`), then polls GPIO36 every 5 ms
   (`Wait Button Release`) while the rail is still held up by the press.
 - Boot (`0x400e9930`): a button held at boot for 100 ms is `button long chick -> power on`, GPIO23
-  is raised (`0x400e9524`).
-- GPIO34 and GPIO35 are two more inputs, read together into a status byte at `0x400d5034` (low sets
-  a bit); by their use, charge state lines.
+  is raised (`0x400e9524`); a shorter press logs `boot type:bat nomoral & chick -> power off` and
+  drops GPIO23. A boot with the button up (USB plugged in) raises GPIO23. No battery check here.
+- GPIO34 and GPIO35 are the USB and charge lines (Battery below).
 
 Our firmware (`drivers/button_press.c`, `main/main.c`): GPIO36 is polled every 50 ms; a press counts
 only after the line has been seen released for 500 ms (so the power-on press and a stuck line do
@@ -316,6 +316,39 @@ restarts it.
 Charge and power MCU: the **ATtiny814** at I2C port 1, 0x0c (the init logs `Attiny814 IIC Init
 Fail`, which is the GPIO32 input setup of the touch path). It powers the board on from a long press
 while the ESP32 is off and keeps the rail up while the button is held.
+
+## Battery
+
+One Li-ion cell (a blue cylinder in the lower block, red and black leads to a connector). The
+charger part is not identified from photos. The ESP32 has no way to steer it: the charge lines
+it sees, GPIO34 and GPIO35, are input-only pins, no charger answers on either I2C bus (the table
+above), and the stock app only reads the ATtiny at 0x0c, never writes to it. So charging and its
+end are the hardware's own; firmware cannot overcharge the cell.
+
+The stock `Battery_Task` (`0x400f1c90`, init `0x400f19c4`), once a second:
+
+- **Cell voltage**: ADC1 channel 3 (GPIO39), 12 bit, 11 dB, eFuse calibrated; 5 samples averaged,
+  times 2 (a 1:2 divider, `0x400f1b94`).
+- **USB present**: GPIO34 low (`0x400e9534`). **Charging**: GPIO35 low while on USB
+  (`0x400e954c`); "full" when the cell is over 4050 mV or GPIO35 is high, back to charging at
+  3949 mV or lower with GPIO35 low. GPIO35 is also read as ADC1 channel 7 at 2.5 dB on USB and
+  scaled (mV / 2); by its use a charge current, not used for any decision.
+- **Percent**: a 101 entry table at `0x3f409826`, 4200 mV = 100 % down to 2900 mV = 0 % (3700 mV is
+  54 %, 3502 mV 27 %, 3308 mV 7 %). On battery the shown level only falls, on USB it only
+  rises; a reading of 2500 mV or less on battery counts as no reading.
+- **Low battery** (`0x400f1e1d`): on battery only, below 7 % (under 3308 mV) in system states 4, 5
+  and 13 (13 is the screensaver), and with the shown level at 19 % or less or the real one under
+  5 %, it calls `System_Power_Off` (`0x400e9b10`), which drops GPIO23. Unplugging USB in the dark
+  charging state (long press on USB) powers off the same way.
+- **Timeouts on battery** (`global_task_sec`, `0x400ea1ac`): a counter reaching `power_off_time`
+  (1800 s) logs `auto power off` (`0x400ea7c7`) and runs the long press power off.
+
+Our firmware (`drivers/battery.c`, `main/main.c`) reads the same lines and table. On battery it
+powers off with "Low battery" below 3300 mV for three reads in a row, 10 s apart, and refuses to
+start below 3400 mV or after a brownout restart, before Wi-Fi comes up, so a weak cell gets one
+brownout and no restart loop. A pending update does not hold it (the cut rolls the update back).
+`GET /status` shows `battery` (`mv`, `pct`, `usb`, `charging`) and `off` is `battery` after such a
+power off. No timeouts on battery yet.
 
 ## Noise
 

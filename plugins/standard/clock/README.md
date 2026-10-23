@@ -23,6 +23,6 @@ screen shows `--` and "time not set".
 
 ## Limits
 
-- The time zone is fixed to Kyiv by the firmware, not by this plugin.
+- The time zone is set on the System page of the web interface, not by this plugin.
 - No LED.
 - The screen redraws once a second while it is shown, and only when the text changed.

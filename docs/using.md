@@ -126,6 +126,9 @@ Night mode: on or off, the schedule, dim or turn off the screen, and the two bri
   that reads warmer or cooler than a thermometer you trust. The panel, the plugins and the web
   interface all show the corrected value. Humidity is recalculated for the corrected temperature,
   since air that reads warmer than it is also reads drier.
+- **Time**: the time zone, Kyiv by default. Pick one from the list and the clock and night mode
+  follow it at once, daylight saving time included. The current time in that zone shows under the
+  list.
 
 ![The System page](images/web/system.png)
 
@@ -169,7 +172,6 @@ laptops from the last ten years have it.
   app. HomeKit support is planned to be looked at later; if it does not work out, the fallback is
   an API for Home Assistant.
 - No battery level and no charging screen: the charge controller's protocol is not decoded yet.
-- The time zone is fixed to Kyiv.
 - The device password can be changed only by a factory reset and a new setup.
 - `cgdn1.local` needs multicast DNS; on networks that block it, use the IP address.
 - The password and the session cookie travel over plain HTTP on your local network.
