@@ -1,4 +1,3 @@
-import { signedOut } from "./api";
 import { notify } from "./notify";
 
 // The device's {"error": "..."} from a failed response, or "" when it gave none.
@@ -7,18 +6,12 @@ export async function deviceError(response) {
   return typeof body.error === "string" ? body.error : "";
 }
 
-// The session is gone: a notice, and the page goes back to the sign-in.
-export function sessionGone(t) {
-  notify(t("app.signedOut"), "warning");
-  signedOut();
-}
-
-// True, with a notice, when the device refused the request: signed out, a wrong
-// password tried again too soon, or no password set yet (then only the setup AP may
-// set one).
+// True, with a notice, when the device refused the request: signed out (request in
+// api.js has already sent the page back to the sign-in), a wrong password tried again
+// too soon, or no password set yet (then only the setup AP may set one).
 export function refused(t, response) {
   if (response.status === 401) {
-    sessionGone(t);
+    notify(t("app.signedOut"), "warning");
     return true;
   }
 

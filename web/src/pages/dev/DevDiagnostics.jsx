@@ -1,9 +1,9 @@
 import { Button } from "@heroui/react";
 
 import { CodeBlock } from "./CodeBlock";
-import { useSensors } from "./devApi";
 import { InfoList, InfoRow } from "../../components/InfoRow";
 import { TitledCard } from "../../components/TitledCard";
+import { useSensors } from "../../lib/api";
 import { notify } from "../../lib/notify";
 import { useT } from "../../i18n";
 
@@ -91,7 +91,7 @@ function LastCrash({ crash }) {
 
 export function DevDiagnostics({ status }) {
   const t = useT();
-  const { data: sensors } = useSensors();
+  const { data: sensors } = useSensors(true, 3000);
 
   const crash = status?.crash ? JSON.stringify(status.crash, null, 2) : null;
 
