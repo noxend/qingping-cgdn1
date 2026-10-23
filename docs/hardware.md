@@ -276,11 +276,12 @@ What the stock firmware does (app image, addresses at run time):
 
 Our firmware (`drivers/button_press.c`, `main/main.c`): GPIO36 is polled every 50 ms; a press counts
 only after the line has been seen released for 500 ms (so the power-on press and a stuck line do
-nothing); a release before 2000 ms toggles the screen and the LED, a 2000 ms hold shows "Powering
-off", notes `button` as the power-off reason (`off` in `GET /status` after the next boot), drops
-GPIO23 and waits for the release (15 s at most). A hold while an update is still unconfirmed is
-ignored. On battery the rail goes; on USB it stays, so the board stays dark until the next long
-press restarts it.
+nothing); a release before 1000 ms toggles the screen and the LED, or goes back in the device menu;
+a 1000 ms hold opens the menu; a 5000 ms hold shows "Powering off", notes `button` as the power-off
+reason (`menu` from the menu's Power off; `off` in `GET /status` after the next boot), drops GPIO23
+and waits for the release (15 s at most). Power off while an update is still unconfirmed is
+ignored. On battery the rail goes; on USB it stays, so the board stays dark until the next hold
+restarts it.
 
 Charge and power MCU: the **ATtiny814** at I2C port 1, 0x0c (the init logs `Attiny814 IIC Init
 Fail`, which is the GPIO32 input setup of the touch path). It powers the board on from a long press

@@ -265,7 +265,7 @@ export const en = {
   "system.join.text":
     "The device restarts and joins this network. Then connect this phone to “{name}” and open:",
   "system.join.info":
-    "The device shows this address on its screen once it connects. Later: hold the strip and choose Info.",
+    "The device shows this address on its screen once it connects. Later: hold the power button for a second and choose Info.",
   "system.join.failed": "Could not connect to “{name}”",
   "system.wifiFail.password": "The Wi-Fi password was not accepted, or the signal is too weak.",
   "system.wifiFail.not_found": "The network is out of range or switched off.",
