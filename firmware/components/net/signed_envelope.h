@@ -1,6 +1,6 @@
 // The envelope both release channels are published in (the web manifest and the
 // firmware manifest): {"payload": base64(P), "sig": base64(DER ECDSA P-256 over P)},
-// signed by tools/publish_*.py with the key whose public half is built into the
+// signed by tools/publish_*.mjs with the key whose public half is built into the
 // firmware (web_manifest_pub.pem). Each channel then checks P's own shape, and the
 // shapes differ, so a payload signed for one channel is refused by the other.
 #pragma once

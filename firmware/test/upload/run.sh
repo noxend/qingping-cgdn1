@@ -20,24 +20,7 @@ mkdir -p "$MODS"
 "$PLUGINS/build.sh" "$PLUGINS/standard/clock" "$MODS/clock.wasm" >/dev/null
 git -C "$FW" show 80ccca1:firmware/plugins-wasm/examples/clock/plugin.json >"$MODS/v1.json"
 git -C "$FW" show 80ccca1:firmware/plugins-wasm/sdk/plugin_wasm.h >"$MODS/sdk1.h"
-python3 -I -B - "$PLUGINS" "$MODS" "$HERE/.." <<'PY'
-import json, subprocess, sys
-plugins, mods = sys.argv[1], sys.argv[2]
-sys.path.insert(0, sys.argv[3])
-from wasm_section import without_section
-bare = without_section(open(f"{mods}/clock.wasm", "rb").read())
-
-def embed(name, meta, header=f"{plugins}/sdk/plugin_wasm.h"):
-    open(f"{mods}/{name}.wasm", "wb").write(bare)
-    json.dump(meta, open(f"{mods}/{name}.json", "w"), ensure_ascii=False)
-    subprocess.check_call(["python3", "-I", f"{plugins}/sdk/embed_manifest.py", "--no-check",
-                           f"{mods}/{name}.wasm", f"{mods}/{name}.json", header])
-
-meta = json.load(open(f"{plugins}/standard/clock/plugin.json"))
-for plugin_id in [f"w{k}" for k in range(64)] + ["broken"]:
-    embed(plugin_id, dict(meta, id=plugin_id))
-embed("old", dict(json.load(open(f"{mods}/v1.json")), id="old"), f"{mods}/sdk1.h")
-PY
+python3 -I -B "$HERE/modules.py" "$PLUGINS" "$MODS"
 # The standard plugins as the image carries them: built as wasm_host's CMakeLists builds
 # them, under the symbols target_add_binary_data gives them.
 mkdir -p "$BUILD/standard"
