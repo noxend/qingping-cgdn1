@@ -4,11 +4,12 @@ export function InfoList({ className, children }) {
   return <dl className={cn("divide-y divide-separator", className)}>{children}</dl>;
 }
 
-export function InfoRow({ label, children }) {
+// `figure` sets a number or a version in the figures face.
+export function InfoRow({ label, figure, children }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-2.5">
       <dt className="text-sm text-muted">{label}</dt>
-      <dd className="text-right text-sm">{children}</dd>
+      <dd className={cn("text-right text-sm", figure && "font-mono tnum")}>{children}</dd>
     </div>
   );
 }

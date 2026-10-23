@@ -80,8 +80,10 @@ export function PluginPage({
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">{plugin.name}</h1>
-          <p className="mt-3 text-lg leading-relaxed text-muted">{plugin.description}</p>
+          <h1 className="text-[1.75rem] font-semibold tracking-[-0.02em] sm:text-[2rem]">
+            {plugin.name}
+          </h1>
+          <p className="mt-2 leading-relaxed text-muted">{plugin.description}</p>
 
           <div className="mt-3 flex flex-wrap items-center gap-3 text-sm leading-5 text-muted">
             <span>{t("category." + plugin.category)}</span>

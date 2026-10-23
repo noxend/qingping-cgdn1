@@ -3,6 +3,7 @@ import { navigate } from "wouter/use-hash-location";
 
 import { Banner } from "./Banner";
 import { AlertStatus } from "../../components/AlertStatus";
+import { DeviceScreen } from "../../components/DeviceScreen";
 import { PageTitle } from "../../components/PageTitle";
 import { PluginCard } from "../../components/PluginCard";
 import { PluginGrid } from "../../components/PluginGrid";
@@ -10,7 +11,24 @@ import { PluginMedia } from "../../components/PluginMedia";
 import { SectionHeader } from "../../components/SectionHeader";
 import { StatusChip } from "../../components/StatusChip";
 import { UploadPlugin } from "../../components/UploadPlugin";
+import { usePluginScreen } from "../../lib/api";
 import { useT } from "../../i18n";
+
+// "On screen now", with the device's LED beside it while it is lit.
+function Kicker({ plugin }) {
+  const t = useT();
+  const { data } = usePluginScreen(plugin.installed ? plugin.id : null);
+
+  const led = data?.led;
+  const lit = led && led !== "off";
+
+  return (
+    <span className="inline-flex items-center gap-2">
+      {lit && <span className="size-2 rounded-full" style={{ background: led }} />}
+      {t("home.onScreen")}
+    </span>
+  );
+}
 
 function OnScreenNow({ plugin, live }) {
   const t = useT();
@@ -28,7 +46,7 @@ function OnScreenNow({ plugin, live }) {
 
   return (
     <Banner
-      kicker={t("home.onScreen")}
+      kicker={<Kicker plugin={plugin} />}
       title={plugin.name}
       media={<PluginMedia plugin={plugin} />}
       actions={actions}
@@ -47,7 +65,8 @@ function NothingOnScreens({ store }) {
 
   return (
     <Card className="text-center">
-      <Card.Content>
+      <Card.Content className="py-6">
+        <DeviceScreen className="mx-auto mb-5 w-36" />
         <p className="text-muted">{t("home.empty")}</p>
         <div className="mt-4 flex flex-wrap justify-center gap-3">
           <Button variant="secondary" onPress={() => navigate("/store")}>

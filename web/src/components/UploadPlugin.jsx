@@ -23,8 +23,12 @@ function ChosenModule({ chosen, store }) {
       <p className="mt-1 text-sm text-muted">{textIn(manifest.description, lang)}</p>
 
       <InfoList className="mt-2">
-        <InfoRow label={t("plugin.version")}>{manifest.version}</InfoRow>
-        <InfoRow label={t("plugin.size")}>{size}</InfoRow>
+        <InfoRow label={t("plugin.version")} figure>
+          {manifest.version}
+        </InfoRow>
+        <InfoRow label={t("plugin.size")} figure>
+          {size}
+        </InfoRow>
         {manifest.hosts.length > 0 && (
           <InfoRow label={t("upload.hosts")}>{manifest.hosts.join(", ")}</InfoRow>
         )}

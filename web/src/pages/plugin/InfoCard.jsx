@@ -27,9 +27,17 @@ export function InfoCard({ plugin, stored, credit }) {
       <InfoList>
         <InfoRow label={t("plugin.category")}>{t("category." + plugin.category)}</InfoRow>
 
-        {plugin.version && <InfoRow label={t("plugin.version")}>{plugin.version}</InfoRow>}
+        {plugin.version && (
+          <InfoRow label={t("plugin.version")} figure>
+            {plugin.version}
+          </InfoRow>
+        )}
 
-        {stored && <InfoRow label={t("plugin.size")}>{formatBytes(stored.size, lang)}</InfoRow>}
+        {stored && (
+          <InfoRow label={t("plugin.size")} figure>
+            {formatBytes(stored.size, lang)}
+          </InfoRow>
+        )}
 
         {stopped && <InfoRow label={t("plugin.runtime")}>{t("plugin.stopped")}</InfoRow>}
 

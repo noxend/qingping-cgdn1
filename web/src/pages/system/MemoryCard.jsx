@@ -12,7 +12,7 @@ function MemoryBar({ label, used, total, word }) {
   return (
     <Meter value={share} color={color} size="sm" valueLabel={word}>
       <Label>{label}</Label>
-      <Meter.Output />
+      <Meter.Output className="font-mono text-xs tnum" />
       <Meter.Track>
         <Meter.Fill />
       </Meter.Track>
