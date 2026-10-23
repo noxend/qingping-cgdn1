@@ -2,7 +2,7 @@
 // flash so builds can be told apart.
 #pragma once
 
-#define FW_VERSION "1.0.0-rc23"
+#define FW_VERSION "1.0.0-rc24"
 // The HTTP API contract the hosted web interface is written against: the JSON
 // shapes of /status, /config, /screen, /sensors, /alerts and the JSON errors.
 // Bump it on any change a published interface could trip over.
