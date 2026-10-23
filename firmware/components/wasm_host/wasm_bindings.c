@@ -7,20 +7,14 @@
 #include <time.h>
 #include "json_scan.h"
 #include "plugin_sdk.h"
+#include "wasm_abi.h"
 #include "wasm_module.h"
 
-// The structs a module passes, as plugins/sdk/plugin_wasm.h lays them out.
-typedef struct {
-  float value;
-  int32_t valid;
-  uint32_t age_ms;
-} wasm_sensor_t;
-
-typedef struct {
-  int32_t sec, min, hour;
-  int32_t mday, mon, year;
-  int32_t wday, yday, isdst;
-} wasm_tm_t;
+_Static_assert(GFX_W == WASM_GFX_W && GFX_H == WASM_GFX_H, "the module's frame is the SDK's");
+_Static_assert(GFX_KEEP == WASM_GFX_KEEP, "a module's palette reaches gfx_blit as it is");
+_Static_assert(SENSOR_TEMP == WASM_SENSOR_TEMP && SENSOR_HUM == WASM_SENSOR_HUM &&
+                   SENSOR_CO2 == WASM_SENSOR_CO2,
+               "w_sensor_get passes a module's sensor id on as it is");
 
 static uint8_t level_of(int level) {
   if (level < 0) {
@@ -68,7 +62,7 @@ static void w_gfx_font(wasm_exec_env_t env, int font) {
   if (!wasm_module_in_time(env)) {
     return;
   }
-  gfx_font(font == 1 ? GFX_FONT_DIGITS : GFX_FONT_TEXT);
+  gfx_font(font == WASM_FONT_DIGITS ? GFX_FONT_DIGITS : GFX_FONT_TEXT);
 }
 
 static void w_gfx_text(wasm_exec_env_t env, int x, int y, const char *s) {

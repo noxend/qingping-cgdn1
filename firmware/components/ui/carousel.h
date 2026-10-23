@@ -40,9 +40,12 @@ void carousel_refresh(void);  // redraw the neighbour frames, unless a drag is o
 void carousel_shown(void);    // the shown screen changed: neighbours are stale
 bool carousel_busy(void);     // the carousel owns the panel (drag or settle)
 
-// One line of timing and memory figures for diagnostics.
-int carousel_stats(char *out, int cap);
-
 // How often the frame tick had to post a frame again because the UI loop had not
 // taken the previous one within REPOST_TICKS. Zero on a healthy device.
 int carousel_frames_reposted(void);
+
+// ---- For the test hooks only ----------------------------------------------------
+// Nothing in this firmware calls these; the test endpoints of the private cgdn1-dev
+// repository do (see api/test_hooks.h).
+// One line of timing and memory figures for diagnostics.
+int carousel_stats(char *out, int cap);
