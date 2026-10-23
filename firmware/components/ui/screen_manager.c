@@ -26,6 +26,7 @@
 #include "net.h"
 #include "night.h"
 #include "oled.h"
+#include "rollback.h"
 #include "settings.h"
 #include "text.h"
 #include "wasm_host.h"
@@ -88,7 +89,6 @@ enum {
   EV_TIMER,
   EV_NET,
   EV_PREVIEW,
-  EV_INPUT,
   EV_FRAME,
   EV_REFRESH,
   EV_ENABLED,
@@ -96,7 +96,7 @@ enum {
   EV_REDRAW,        // draw the shown screen again (a probe used the panel)
   EV_MENU_FINGER,   // the finger while the device menu is open (finger_msg_t)
   EV_MENU_TIMEOUT,  // the menu was left alone for menu_idle_us()
-  EV_DISPLAY,       // the power button: display_cmd_t
+  EV_DISPLAY,       // the power button and the power-off path: display_cmd_t
   EV_WAKE,          // a finger on a blanked panel
 };
 ESP_EVENT_DEFINE_BASE(CORE_EVENT);
@@ -154,27 +154,29 @@ static void call_end(int idx, const char *what) {
 static bool s_dirty;  // the shown screen asked for a redraw
 
 // ---- Device menu and display: state ----------------------------------------------
-// A hold opens the menu over the shown screen; while it is open the finger goes to
-// the menu, not the carousel, and the shown screen is not repainted. A click on the
-// power button blanks the panel and the LED; the next finger or click brings them
-// back. Both flags are read on the touch task, hence atomic.
+// A hold on the power button opens the menu over the shown screen; while it is open
+// the finger goes to the menu, not the carousel, and the shown screen is not
+// repainted. A click on the button goes back in the menu, and outside it blanks the
+// panel and the LED; the next finger or click brings them back. Both flags are read
+// on the touch task, hence atomic.
 #define JOINED_SHOW_US (5LL * 60 * 1000 * 1000)  // the address after a save, unless touched
 static atomic_bool s_menu_owns_finger;
 static atomic_bool s_display_off;
 static atomic_bool s_powered_down;  // the power-off path blanks it; nothing wakes it
 static bool s_blank_pending;        // the panel must be cleared once the carousel lets go
-static int64_t s_woke_at_us;        // when a finger last woke the panel
-#define WAKE_HOLD_GRACE_US (1500 * 1000)
 static esp_timer_handle_t s_menu_timer;
 static const char *s_version = "";
+static void (*s_power_off)(void);
 
 typedef struct {
   touch_phase_t phase;
   int pos;
+  uint32_t ms;  // when the touch task saw it
 } finger_msg_t;
 
 typedef enum {
-  DISPLAY_TOGGLE,
+  DISPLAY_CLICK,
+  DISPLAY_MENU,
   DISPLAY_OFF,
   DISPLAY_POWERING_OFF,
 } display_cmd_t;
@@ -480,7 +482,7 @@ static void menu_render(void) {
 static void menu_show(void) {
   menu_open();
   atomic_store(&s_menu_owns_finger, true);
-  carousel_touch(TOUCH_PHASE_UP, 0);  // the opening touch is the menu's from here on
+  carousel_touch(TOUCH_PHASE_UP, 0);  // a finger on the strip is the menu's from here on
   menu_touched();
   menu_render();
 }
@@ -528,6 +530,22 @@ static void menu_hide(void) {
 
 static void menu_act(menu_action_t action) {
   switch (action) {
+  case MENU_NONE:
+    break;
+  case MENU_POWER_OFF:
+    if (s_power_off) {
+      s_power_off();
+    }
+    break;
+  case MENU_RESTART:
+    // Until the image is confirmed a restart rolls the update back, as a power cut does.
+    if (strcmp(rollback_image_state(), "pending") == 0) {
+      ESP_LOGW(TAG, "restart ignored: the update is not confirmed yet");
+      break;
+    }
+    text_show_message("Restarting");
+    esp_restart();
+    break;
   case MENU_WIFI_SETUP:
     setup_ap_show();
     menu_render();
@@ -538,7 +556,7 @@ static void menu_act(menu_action_t action) {
   case MENU_CLOSE:
     menu_hide();
     break;
-  default:
+  case MENU_REDRAW:
     menu_render();
     break;
   }
@@ -573,35 +591,46 @@ static void display_set(bool off) {
   blank_panel();
 }
 
+// A click on the power button: wakes a blanked panel, goes back in the menu, else
+// blanks the panel.
+static void handle_click(void) {
+  if (atomic_load(&s_display_off)) {
+    display_set(false);
+    return;
+  }
+  if (!menu_is_open()) {
+    display_set(true);
+    return;
+  }
+  menu_act(menu_back());
+  if (menu_is_open()) {
+    menu_touched();  // after the page change, which may have left the setup page
+  }
+}
+
+// A hold on the power button: opens the menu, on a blanked panel too, but not on
+// one the power-off path holds dark. An open menu stays on its page.
+static void handle_menu(void) {
+  if (atomic_load(&s_display_off)) {
+    display_set(false);
+  }
+  if (!atomic_load(&s_display_off) && !carousel_busy() && !menu_is_open()) {
+    menu_show();
+  }
+}
+
 static void handle_display(display_cmd_t cmd) {
-  if (cmd == DISPLAY_TOGGLE) {
-    display_set(!atomic_load(&s_display_off));
+  if (cmd == DISPLAY_CLICK) {
+    handle_click();
+    return;
+  }
+  if (cmd == DISPLAY_MENU) {
+    handle_menu();
     return;
   }
   display_set(true);
   if (cmd == DISPLAY_POWERING_OFF) {
     text_show_message("Powering off");
-  }
-}
-
-// A hold: wakes a blanked panel, selects in the menu, else opens the menu.
-static void handle_hold(void) {
-  if (atomic_load(&s_display_off)) {
-    display_set(false);
-    return;
-  }
-  if (esp_timer_get_time() - s_woke_at_us < WAKE_HOLD_GRACE_US) {
-    return;  // the finger that woke the panel is still the same touch
-  }
-  if (menu_is_open()) {
-    menu_act(menu_hold(net_online()));
-    if (menu_is_open()) {
-      menu_touched();  // after the hold, which may have left the setup page
-    }
-    return;
-  }
-  if (!carousel_busy()) {
-    menu_show();
   }
 }
 
@@ -896,16 +925,13 @@ static void ui_handler(void *arg, esp_event_base_t base, int32_t id, void *data)
   case EV_PREVIEW:
     run_preview(*(preview_t *const *) data);
     break;
-  case EV_INPUT:
-    handle_hold();
-    break;
   case EV_MENU_FINGER: {
     const finger_msg_t *m = data;
     if (menu_is_open()) {
-      menu_touched();
-      if (menu_finger(m->phase, m->pos)) {
-        menu_render();
-      }
+      menu_act(menu_finger(m->phase, m->pos, m->ms, net_online()));
+    }
+    if (menu_is_open()) {
+      menu_touched();  // after the finger, which may have left the setup page
     }
     break;
   }
@@ -923,7 +949,6 @@ static void ui_handler(void *arg, esp_event_base_t base, int32_t id, void *data)
     break;
   case EV_WAKE:
     if (atomic_load(&s_display_off)) {
-      s_woke_at_us = esp_timer_get_time();
       display_set(false);
     }
     break;
@@ -958,8 +983,8 @@ static void ui_handler(void *arg, esp_event_base_t base, int32_t id, void *data)
   esp_task_wdt_reset();  // after the work, so a handler that never returns is caught
 }
 
+// A hold on the strip does nothing; it is kept for later.
 void core_hold(void) {
-  post(EV_INPUT, NULL, 0);
 }
 
 // From the touch task. A blanked panel takes the first finger as "wake"; an open
@@ -976,7 +1001,11 @@ void core_touch(touch_phase_t phase, int pos) {
     return;
   }
   if (atomic_load(&s_menu_owns_finger)) {
-    finger_msg_t m = {.phase = phase, .pos = pos};
+    finger_msg_t m = {
+        .phase = phase,
+        .pos = pos,
+        .ms = (uint32_t) (esp_timer_get_time() / 1000),
+    };
     post(EV_MENU_FINGER, &m, sizeof(m));
     if (phase == TOUCH_PHASE_UP) {
       carousel_touch(phase, pos);
@@ -986,9 +1015,18 @@ void core_touch(touch_phase_t phase, int pos) {
   carousel_touch(phase, pos);
 }
 
-void screen_manager_display_toggle(void) {
-  display_cmd_t cmd = DISPLAY_TOGGLE;
+void screen_manager_button_click(void) {
+  display_cmd_t cmd = DISPLAY_CLICK;
   post(EV_DISPLAY, &cmd, sizeof(cmd));
+}
+
+void screen_manager_button_hold(void) {
+  display_cmd_t cmd = DISPLAY_MENU;
+  post(EV_DISPLAY, &cmd, sizeof(cmd));
+}
+
+void screen_manager_set_power_off(void (*power_off)(void)) {
+  s_power_off = power_off;
 }
 
 // The lock is set here, not on the loop, so a wake already queued cannot undo it.

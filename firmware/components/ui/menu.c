@@ -6,14 +6,17 @@
 #include "plugin_sdk.h"
 #include "qrcodegen.h"
 
-// A swipe is a finger that travelled this far between down and up. The strip
-// counts up toward the left of the screen (carousel.c), so a finger moving right
-// lowers the count: that is "next", down the list.
+// A swipe is a finger that travelled this far between down and up, a tap one that
+// travelled less. The strip counts up toward the left of the screen (carousel.c), so
+// a finger moving right lowers the count: that is "next", down the list.
 #define SWIPE_MIN 40
+// A tap is shorter than the touch driver's hold (TOUCH_HOLD_MS in touch.c).
+#define TAP_MAX_MS 800
 
 #define TITLE_TOP 4
 #define RULE_Y 24
 #define ROW_H 20
+#define MENU_TOP 7   // first row of the menu itself: six rows and no title
 #define LIST_TOP 30  // first row of a list page
 #define INFO_TOP 26  // first row of the info page, five rows fit
 #define TEXT_LEFT 4
@@ -33,10 +36,20 @@ typedef enum {
   PAGE_JOINED,  // after a save: the address the device got on the new network
 } page_t;
 
-enum { ITEM_INFO, ITEM_WIFI, ITEM_RESET, ITEM_BACK, ITEM_COUNT };
+enum {
+  ITEM_POWER_OFF,
+  ITEM_RESTART,
+  ITEM_WIFI,
+  ITEM_RESET,
+  ITEM_INFO,
+  ITEM_BACK,
+  ITEM_COUNT,
+};
 enum { CONFIRM_NO, CONFIRM_YES, CONFIRM_COUNT };
 
-static const char *const ITEMS[ITEM_COUNT] = {"Info", "Wi-Fi setup", "Factory reset", "Back"};
+static const char *const ITEMS[ITEM_COUNT] = {
+    "Power off", "Restart", "Wi-Fi setup", "Factory reset", "Info", "Back",
+};
 static const char *const CONFIRM[CONFIRM_COUNT] = {"No", "Yes, reset"};
 static const char *const HOTSPOT[CONFIRM_COUNT] = {"No", "Yes"};
 
@@ -45,13 +58,14 @@ static page_t s_page;
 static int s_item;     // selected row of the list page
 static int s_confirm;  // selected row of the confirm and hotspot pages
 static bool s_down;
-static int s_start;       // strip position at touch down
+static int s_start;  // strip position at touch down
+static uint32_t s_start_ms;
 static bool s_wifi_text;  // the Wi-Fi page shows the hotspot as text, not as the QR code
 
 void menu_open(void) {
   s_open = true;
   s_page = PAGE_LIST;
-  s_item = ITEM_INFO;
+  s_item = ITEM_BACK;  // a stray tap only closes the menu
   s_down = false;
 }
 
@@ -88,70 +102,26 @@ static int step_in(int selected, int step, int count) {
   return (selected + step + count) % count;
 }
 
-bool menu_finger(touch_phase_t phase, int pos) {
-  if (phase == TOUCH_PHASE_DOWN) {
-    s_down = true;
-    s_start = pos;
-    return false;
-  }
-  if (phase != TOUCH_PHASE_UP || !s_down) {
-    return false;
-  }
-  s_down = false;
-  int travel = pos - s_start;
-  if (abs(travel) < SWIPE_MIN) {
-    return false;
-  }
-  int step = travel < 0 ? 1 : -1;
-  if (s_page == PAGE_LIST) {
-    s_item = step_in(s_item, step, ITEM_COUNT);
-    return true;
-  }
-  if (s_page == PAGE_CONFIRM || s_page == PAGE_HOTSPOT) {
-    s_confirm = step_in(s_confirm, step, CONFIRM_COUNT);
-    return true;
-  }
-  if (s_page == PAGE_WIFI) {
-    s_wifi_text = !s_wifi_text;
-    return true;
-  }
-  return false;
-}
-
-menu_action_t menu_hold(bool online) {
-  switch (s_page) {
-  case PAGE_LIST:
-    break;
-  case PAGE_CONFIRM:
-    if (s_confirm == CONFIRM_YES) {
-      return MENU_FACTORY_RESET;
-    }
-    s_page = PAGE_LIST;
-    return MENU_NONE;
-  case PAGE_HOTSPOT:
-    if (s_confirm == CONFIRM_YES) {
-      s_page = PAGE_WIFI;
-      s_wifi_text = false;
-      return MENU_WIFI_SETUP;
-    }
-    s_page = PAGE_LIST;
-    return MENU_NONE;
-  case PAGE_INFO:
-  case PAGE_WIFI:
-    s_page = PAGE_LIST;
-    return MENU_NONE;
-  case PAGE_JOINED:
+menu_action_t menu_back(void) {
+  s_down = false;  // a finger on the strip lifts on the new page as no tap
+  if (s_page == PAGE_LIST || s_page == PAGE_JOINED) {
     return MENU_CLOSE;
   }
+  s_page = PAGE_LIST;
+  return MENU_REDRAW;
+}
+
+static menu_action_t choose_item(bool online) {
   switch (s_item) {
-  case ITEM_INFO:
-    s_page = PAGE_INFO;
-    return MENU_NONE;
+  case ITEM_POWER_OFF:
+    return MENU_POWER_OFF;
+  case ITEM_RESTART:
+    return MENU_RESTART;
   case ITEM_WIFI:
     if (online) {
       s_page = PAGE_HOTSPOT;
       s_confirm = CONFIRM_NO;
-      return MENU_NONE;
+      return MENU_REDRAW;
     }
     s_page = PAGE_WIFI;
     s_wifi_text = false;
@@ -159,10 +129,74 @@ menu_action_t menu_hold(bool online) {
   case ITEM_RESET:
     s_page = PAGE_CONFIRM;
     s_confirm = CONFIRM_NO;
-    return MENU_NONE;
+    return MENU_REDRAW;
+  case ITEM_INFO:
+    s_page = PAGE_INFO;
+    return MENU_REDRAW;
   default:
     return MENU_CLOSE;
   }
+}
+
+// A tap. The pages without a choice of rows (info, Wi-Fi, the address after a save)
+// take it as their Back.
+static menu_action_t choose(bool online) {
+  switch (s_page) {
+  case PAGE_LIST:
+    return choose_item(online);
+  case PAGE_CONFIRM:
+    if (s_confirm == CONFIRM_YES) {
+      return MENU_FACTORY_RESET;
+    }
+    return menu_back();
+  case PAGE_HOTSPOT:
+    if (s_confirm == CONFIRM_YES) {
+      s_page = PAGE_WIFI;
+      s_wifi_text = false;
+      return MENU_WIFI_SETUP;
+    }
+    return menu_back();
+  default:
+    return menu_back();
+  }
+}
+
+static menu_action_t swipe(int step) {
+  switch (s_page) {
+  case PAGE_LIST:
+    s_item = step_in(s_item, step, ITEM_COUNT);
+    return MENU_REDRAW;
+  case PAGE_CONFIRM:
+  case PAGE_HOTSPOT:
+    s_confirm = step_in(s_confirm, step, CONFIRM_COUNT);
+    return MENU_REDRAW;
+  case PAGE_WIFI:
+    s_wifi_text = !s_wifi_text;
+    return MENU_REDRAW;
+  default:
+    return MENU_NONE;
+  }
+}
+
+menu_action_t menu_finger(touch_phase_t phase, int pos, uint32_t ms, bool online) {
+  if (phase == TOUCH_PHASE_DOWN) {
+    s_down = true;
+    s_start = pos;
+    s_start_ms = ms;
+    return MENU_NONE;
+  }
+  if (phase != TOUCH_PHASE_UP || !s_down) {
+    return MENU_NONE;
+  }
+  s_down = false;
+  int travel = pos - s_start;
+  if (abs(travel) >= SWIPE_MIN) {
+    return swipe(travel < 0 ? 1 : -1);
+  }
+  if (ms - s_start_ms >= TAP_MAX_MS) {
+    return MENU_NONE;
+  }
+  return choose(online);
 }
 
 // ---- drawing -----------------------------------------------------------------
@@ -220,8 +254,7 @@ static void draw_rows(int top, const char *const *rows, int count, int selected)
 }
 
 static void draw_list(void) {
-  draw_title("Menu");
-  draw_rows(LIST_TOP, ITEMS, ITEM_COUNT, s_item);
+  draw_rows(MENU_TOP, ITEMS, ITEM_COUNT, s_item);
 }
 
 static void draw_info(const menu_info_t *info) {
@@ -236,8 +269,8 @@ static void draw_info(const menu_info_t *info) {
   int hours = info->up_s / 3600;
   int minutes = (info->up_s / 60) % 60;
   snprintf(uptime, sizeof(uptime), "Up %d:%02d", hours, minutes);
-  const char *const rows[] = {version, ip, ssid, uptime};
-  draw_rows(INFO_TOP, rows, 4, -1);
+  const char *const rows[] = {version, ip, ssid, uptime, "Back"};
+  draw_rows(INFO_TOP, rows, 5, 4);
 }
 
 static void draw_confirm(void) {
@@ -342,8 +375,8 @@ static void draw_wifi(const menu_info_t *info) {
 // Where to open the device once it joined the network saved from the setup page.
 static void draw_joined(const menu_info_t *info) {
   draw_title("Connected");
-  const char *const rows[] = {info->host, info->ip[0] ? info->ip : "No IP address"};
-  draw_rows(LIST_TOP, rows, 2, -1);
+  const char *const rows[] = {info->host, info->ip[0] ? info->ip : "No IP address", "Back"};
+  draw_rows(LIST_TOP, rows, 3, 2);
 }
 
 void menu_draw(const menu_info_t *info) {

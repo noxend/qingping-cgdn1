@@ -31,7 +31,7 @@ const api = [
 
 // Two builds. The default one is a single file the firmware embeds. `--mode hosted`
 // is the bundle published at https://cgdn1.swithy.com/v/<HOSTED_VERSION>/ (see
-// tools/publish_web.py): ordinary files with hashed names, an absolute base so the
+// tools/publish_web.mjs): ordinary files with hashed names, an absolute base so the
 // chunks load from the site while the page itself lives on the device.
 const hostedBase = "https://cgdn1.swithy.com/v/";
 
