@@ -36,12 +36,7 @@ mkdir -p "$NBU"
 api="https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange"
 curl -fsS -A "Mozilla/5.0 cgdn1 test" "$api?valcode=USD&json" -o "$NBU/usd.json"
 curl -fsS -A "Mozilla/5.0 cgdn1 test" "$api?valcode=EUR&json" -o "$NBU/eur.json"
-python3 -I - "$NBU" <<'PY'
-import decimal, json, sys
-rate = decimal.Decimal(str(json.load(open(sys.argv[1] + "/usd.json"))[0]["rate"]))
-cents = rate.quantize(decimal.Decimal("0.01"), rounding=decimal.ROUND_HALF_UP)
-open(sys.argv[1] + "/expected.txt", "w").write(f"{cents}\n")
-PY
+python3 -I -B "$HERE/expected_rate.py" "$NBU"
 
 cd "$OUT"
 status=0
