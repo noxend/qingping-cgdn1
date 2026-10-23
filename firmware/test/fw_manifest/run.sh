@@ -20,6 +20,8 @@ CACHE=${TMPDIR:-/tmp}/cgdn1-host-mbedtls
 
 IMAGE=${1:-}
 if [[ -z "$IMAGE" ]]; then
+  # The build folders are ours and their names plain, which is what ls -t needs.
+  # shellcheck disable=SC2012
   IMAGE=$(ls -t "$FW"/build*/cgdn1.bin 2>/dev/null | head -1 || true)
 fi
 if [[ -z "$IMAGE" || ! -f "$IMAGE" ]]; then

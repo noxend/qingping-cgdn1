@@ -67,4 +67,4 @@ if ((status)); then
 fi
 # The plugin's description travels in the module: the device reads it at the upload.
 python3 -I "$HERE/sdk/embed_manifest.py" "$OUT" "$DIR/plugin.json" "$HERE/sdk/plugin_wasm.h"
-echo "$OUT $(wc -c < "$OUT") bytes, $pages x 64 KB of memory"
+echo "$OUT $(wc -c <"$OUT") bytes, $pages x 64 KB of memory"
