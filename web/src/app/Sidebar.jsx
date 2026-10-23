@@ -46,7 +46,7 @@ function DeviceStatus({ status }) {
       <StatusChip color={connected ? "success" : "warning"}>
         {connected ? t("status.connected") : t("status.setupAp")}
       </StatusChip>
-      <p className="mt-1.5 text-xs text-muted">{t("system.version", { version: status.fw })}</p>
+      <p className="mt-1 text-xs text-muted">{t("system.version", { version: status.fw })}</p>
     </div>
   );
 }
@@ -61,7 +61,7 @@ export function Sidebar({ path, catalog, screens, status, onPick }) {
   return (
     <div className="flex h-full flex-col">
       <Link href="#/" className="mb-7 block px-3 no-underline" onPress={onPick}>
-        <p className="font-semibold tracking-[0.04em]">CGDN1</p>
+        <p className="font-semibold tracking-tight">CGDN1</p>
         <p className="text-xs text-muted">Qingping Air Monitor</p>
       </Link>
 

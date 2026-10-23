@@ -52,14 +52,12 @@ export default defineConfig(({ mode }) => {
       base: `${hostedBase}${version}/`,
       plugins: [react(), tailwindcss()],
       // One script: the device hands the browser a hash per file it names, and a
-      // chunk the entry imported on its own would load unchecked. The fonts are inlined
-      // into the stylesheet for the same reason.
+      // chunk the entry imported on its own would load unchecked.
       build: {
         target: "es2020",
         outDir: "dist-hosted",
         manifest: true,
         cssCodeSplit: false,
-        assetsInlineLimit: 100000000,
         rollupOptions: { output: { inlineDynamicImports: true } },
       },
       server,
