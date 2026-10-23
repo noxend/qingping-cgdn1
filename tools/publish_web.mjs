@@ -135,7 +135,7 @@ async function main() {
     liveSeq = JSON.parse(livePayload).seq;
   } catch (e) {
     // First publish, or the site is down: nothing to compare.
-    console.log(`no live manifest to compare with (${e.message})`);
+    console.log(`no live manifest to compare with (${e.cause?.message ?? e.message})`);
     liveSeq = 0;
   }
   if (now() <= liveSeq) {
