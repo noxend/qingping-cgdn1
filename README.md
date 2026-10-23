@@ -30,6 +30,7 @@ For owners of the device:
 
 - [Installing the firmware](docs/install.md): [opening the case](docs/install.md#3-open-the-case),
   wiring a USB-UART adapter, backing up the stock firmware, the first flash, Wi-Fi setup.
+- [Disassembling the CGDN1 on iFixit](https://www.ifixit.com/Guide/Disassembling+Qingping+Air+Monitor+Lite+CGDN1/167734): the case opened step by step, with photos.
   Back up the stock firmware first: it holds the device's own HomeKit setup data and keys, and
   without it there is no known way back to Apple Home or the Qingping app.
 - [Using the device](docs/using.md): screens, the touch strip, the power button and its menu, the

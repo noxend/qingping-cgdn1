@@ -88,6 +88,9 @@ Software, on macOS or Linux:
 
 ## 3. Open the case
 
+iFixit has a step-by-step guide with photos:
+[Disassembling Qingping Air Monitor Lite CGDN1](https://www.ifixit.com/Guide/Disassembling+Qingping+Air+Monitor+Lite+CGDN1/167734).
+
 The front glass and the display panel under it are both glued.
 
 ### The front glass
