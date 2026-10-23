@@ -152,6 +152,7 @@ class Device:
         self.standard = standard_modules()
         self.enabled = ["clock", "alerts", "co2"]
         self.active = "clock"
+        self.temp_offset = 0.0
         # id -> {"manifest", "size", "values"}, in install order (the table's).
         self.installed = {
             pid: {"manifest": meta, "size": len(code), "values": {}}
@@ -331,6 +332,17 @@ class Handler(BaseHTTPRequestHandler):
                         "catalog": d.catalog(),
                         "enabled": [i for i in d.enabled if i in d.installed],
                         "night": {"enabled": False},
+                        "temp_offset": d.temp_offset,
+                    },
+                )
+            if path == "/sensors":
+                temp = round(23.4 + d.temp_offset, 1)
+                return self.reply(
+                    200,
+                    {
+                        "temp": {"valid": True, "value": temp, "age_ms": 900},
+                        "hum": {"valid": True, "value": 41.0, "age_ms": 900},
+                        "co2": {"valid": True, "value": 612.0, "age_ms": 1200},
                     },
                 )
             if path in ("/alerts", "/plugin/stats"):
@@ -437,6 +449,12 @@ class Handler(BaseHTTPRequestHandler):
                     d.enabled = [i for i in body["enabled"] if i in d.installed]
                 if "active" in body:
                     d.active = body["active"]
+                if "temp_offset" in body:
+                    offset = body["temp_offset"]
+                    tenths = round(offset * 10) if isinstance(offset, (int, float)) else None
+                    if tenths is None or abs(tenths) > 30 or abs(offset * 10 - tenths) > 1e-6:
+                        return self.reply(400, {"error": "bad temp_offset"})
+                    d.temp_offset = tenths / 10
                 if body.get("screen") in d.installed:
                     d.installed[body["screen"]]["values"].update(body.get("values", {}))
             return self.reply(200, b"saved\n", "text/plain")
