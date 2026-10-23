@@ -23,6 +23,9 @@ bool api_start(void) {
   cfg.stack_size = 8192;
   // 25 registered, 29 with the test hooks; httpd_register_uri_handler fails past this.
   cfg.max_uri_handlers = 32;
+  // Browsers get 7 connections (plus the server's 3); past that the oldest is closed
+  // (lru_purge), so they cannot take the sockets the device needs for its own requests.
+  cfg.max_open_sockets = 7;
   cfg.recv_wait_timeout = 10;
   cfg.send_wait_timeout = 10;
   cfg.lru_purge_enable = true;
