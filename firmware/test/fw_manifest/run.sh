@@ -43,37 +43,6 @@ cp "$HERE/harness.c" "$WORK/"
 cd "$WORK"
 curl -fsS -A "Mozilla/5.0 fw_manifest test" "https://cgdn1.swithy.com/manifest.json?t=$(date +%s)" -o webchannel.json
 openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out other.pem 2>/dev/null
-node --input-type=module - "$FW/../tools/publish_fw.mjs" "$IMAGE" <<'JS'
-import { readFileSync, writeFileSync } from "node:fs";
-import { pathToFileURL } from "node:url";
-const [, publisher, imagePath] = process.argv.slice(1);
-const p = await import(pathToFileURL(publisher).href);
-const data = readFileSync(imagePath);
-const seq = Math.floor(Date.now() / 1000);
-function write(name, env) {
-  writeFileSync(name, JSON.stringify(env));
-}
-function release(name, over = {}) {
-  const {
-    version = "0.27.6",
-    notes = "Нова версія: firmware update from the web",
-    seq: at = seq,
-    ...fields
-  } = over;
-  const [inner] = p.payloadFor(data, version, notes, at);
-  const payload = Buffer.from(JSON.stringify({ ...inner, ...fields }));
-  write(name, p.envelope(payload));
-  return payload;
-}
-const real = release("real.json");
-const env = JSON.parse(readFileSync("real.json", "utf8"));
-const tampered = Buffer.from(real.toString().replace("0.27.6", "0.27.7"));
-write("tampered.json", { ...env, payload: tampered.toString("base64") });
-write("otherkey.json", p.envelope(real, "other.pem"));
-release("offpath.json", { url: "https://cgdn1.swithy.com/v/x/cgdn1.bin" });
-release("quote.json", { notes: 'a "quoted" note' });
-release("same.json", { version: "0.27.5", seq: seq + 1 });
-release("older.json", { version: "0.27.9", seq: seq - 1000 });
-JS
+node "$HERE/make_releases.mjs" "$FW/../tools/publish_fw.mjs" "$IMAGE"
 cc -O1 -w -Istub -I"$C/mbedtls/mbedtls/include" -I"$C/json/cJSON" harness.c stub/signed_envelope.c "$C/json/cJSON/cJSON.c" "$CACHE"/*.o -o harness
 ./harness
