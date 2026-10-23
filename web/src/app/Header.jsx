@@ -1,7 +1,6 @@
 import { ArrowUpFromLine, Bars } from "@gravity-ui/icons";
 import { Button, Chip, Link, SearchField } from "@heroui/react";
 
-import { LanguageSwitch } from "../components/LanguageSwitch";
 import { useT } from "../i18n";
 
 const HEADER_CLASS = [
@@ -56,10 +55,11 @@ export function Header({ query, onSearch, onMenu, searchRef, update }) {
         </SearchField.Group>
       </SearchField>
 
-      <div className="ms-auto flex shrink-0 items-center gap-3">
-        {update && <UpdateChip version={update.version} />}
-        <LanguageSwitch />
-      </div>
+      {update && (
+        <div className="ms-auto shrink-0">
+          <UpdateChip version={update.version} />
+        </div>
+      )}
     </header>
   );
 }
