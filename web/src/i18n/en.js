@@ -296,6 +296,9 @@ export const en = {
   "system.tempOffset": "Correction",
   "system.tempNow": "Shown now: {value}",
   "system.tempSave": "Save",
+  "system.time": "Time",
+  "system.timeZone": "Time zone",
+  "system.timeNow": "Now: {time}",
 
   "dev.title": "Developer",
   "dev.noAnswer": "{label}: the device did not answer",

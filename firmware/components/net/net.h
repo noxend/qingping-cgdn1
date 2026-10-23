@@ -22,8 +22,13 @@
 #define NET_PASS_MAX 64
 
 // Loads the saved network, brings up the station and the setup AP, mDNS and SNTP
-// (time zone Kyiv). Call once, after NVS init.
+// with the saved time zone. Call once, after NVS init.
 void net_start(void);
+
+// The time zone's key (time_zone.h), Kyiv until the owner picks another.
+const char *net_time_zone(void);
+// Saves the zone and switches the clock to it; false for an unknown key or a failed store.
+bool net_set_time_zone(const char *key);
 
 // The name the device answers to on the LAN, "cgdn1.local" (mDNS may have renamed it).
 void net_host(char *out, size_t cap);
