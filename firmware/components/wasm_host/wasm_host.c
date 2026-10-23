@@ -49,6 +49,8 @@ EMBEDDED(clock)
 EMBEDDED(humidity)
 EMBEDDED(temperature)
 EMBEDDED(co2)
+EMBEDDED(pm25)
+EMBEDDED(pm10)
 
 typedef struct {
   const char *id;
@@ -62,6 +64,8 @@ static const standard_t STANDARD[] = {
     {"humidity", humidity_start, humidity_end},
     {"temperature", temperature_start, temperature_end},
     {"co2", co2_start, co2_end},
+    {"pm25", pm25_start, pm25_end},
+    {"pm10", pm10_start, pm10_end},
 };
 #define STANDARD_COUNT (sizeof(STANDARD) / sizeof(STANDARD[0]))
 

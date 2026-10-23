@@ -16,6 +16,8 @@
 #define WASM_SENSOR_TEMP 0
 #define WASM_SENSOR_HUM 1
 #define WASM_SENSOR_CO2 2
+#define WASM_SENSOR_PM25 3
+#define WASM_SENSOR_PM10 4
 
 #define WASM_EV_SHOW 0
 #define WASM_EV_HIDE 1

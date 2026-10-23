@@ -11,6 +11,7 @@ int main(void) {
   printf("font_text %d\nfont_digits %d\n", WASM_FONT_TEXT, WASM_FONT_DIGITS);
   printf("sensor_temp %d\nsensor_hum %d\nsensor_co2 %d\n", WASM_SENSOR_TEMP, WASM_SENSOR_HUM,
          WASM_SENSOR_CO2);
+  printf("sensor_pm25 %d\nsensor_pm10 %d\n", WASM_SENSOR_PM25, WASM_SENSOR_PM10);
   printf("ev_show %d\nev_hide %d\nev_timer %d\n", WASM_EV_SHOW, WASM_EV_HIDE, WASM_EV_TIMER);
   printf("sensor_size %zu\n", sizeof(wasm_sensor_t));
   printf("sensor_value %zu\n", offsetof(wasm_sensor_t, value));

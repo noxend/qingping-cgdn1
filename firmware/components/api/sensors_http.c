@@ -6,16 +6,18 @@
 
 // The JSON names of the readings.
 static const char *const NAMES[SENSOR_COUNT] = {
-    [SENSOR_TEMP] = "temp",
-    [SENSOR_HUM] = "hum",
-    [SENSOR_CO2] = "co2",
+    [SENSOR_TEMP] = "temp",  // °C
+    [SENSOR_HUM] = "hum",    // %
+    [SENSOR_CO2] = "co2",    // ppm
+    [SENSOR_PM25] = "pm25",  // µg/m³
+    [SENSOR_PM10] = "pm10",  // µg/m³
 };
 
 // One JSON member: separator, name, valid flag, value, age.
 #define ENTRY_FORMAT "%s\"%s\":{\"valid\":%s,\"value\":%.1f,\"age_ms\":%u}"
 
 static esp_err_t sensors_get(httpd_req_t *req) {
-  char buf[320];  // three entries of at most ~80 characters
+  char buf[512];  // five entries of at most ~80 characters
   int n = snprintf(buf, sizeof(buf), "{");
   for (int i = 0; i < SENSOR_COUNT; i++) {
     sensor_reading_t r;

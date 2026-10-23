@@ -53,6 +53,8 @@ typedef enum {
   SENSOR_TEMP,  // degrees Celsius
   SENSOR_HUM,   // relative humidity in percent
   SENSOR_CO2,   // parts per million
+  SENSOR_PM25,  // PM2.5 in micrograms per cubic metre
+  SENSOR_PM10,  // PM10 in micrograms per cubic metre
   SENSOR_COUNT,
 } sensor_id_t;
 

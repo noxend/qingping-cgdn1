@@ -2,7 +2,7 @@
 // sensor reading, a setting, a time or a network answer. golden/ holds the frames in the
 // standard screen layout (plugins/README.md), and the LED colours and alert stats the
 // native plugins of 1.0.0-rc7 gave for the same cases, before they became WebAssembly
-// modules.
+// modules. The pm25 and pm10 colours are the stock firmware's (journal entry pm25).
 #pragma once
 
 #include <stdbool.h>
@@ -60,6 +60,22 @@ static const plugin_case_t CASES[] = {
     {"hum_65", "humidity", 1, 65.0f, true, NULL, NULL, MORNING, NULL},
     {"hum_75", "humidity", 1, 75.0f, true, NULL, NULL, MORNING, NULL},
     {"hum_80_both", "humidity", 1, 80.8f, true, NULL, NULL, MORNING, NULL},
+    {"pm25_35", "pm25", 3, 35.0f, true, NULL, NULL, MORNING, NULL},
+    {"pm25_36", "pm25", 3, 36.0f, true, NULL, NULL, MORNING, NULL},
+    {"pm25_76", "pm25", 3, 76.0f, true, NULL, NULL, MORNING, NULL},
+    {"pm25_116", "pm25", 3, 116.0f, true, NULL, NULL, MORNING, NULL},
+    {"pm25_151", "pm25", 3, 151.0f, true, NULL, NULL, MORNING, NULL},
+    {"pm25_250", "pm25", 3, 250.0f, true, NULL, NULL, MORNING, NULL},
+    {"pm25_251", "pm25", 3, 251.0f, true, NULL, NULL, MORNING, NULL},
+    {"pm25_999", "pm25", 3, 999.0f, true, NULL, NULL, MORNING, NULL},
+    {"pm25_invalid", "pm25", 3, 0.0f, false, NULL, NULL, MORNING, NULL},
+    {"pm10_50", "pm10", 4, 50.0f, true, NULL, NULL, MORNING, NULL},
+    {"pm10_150", "pm10", 4, 150.0f, true, NULL, NULL, MORNING, NULL},
+    {"pm10_151", "pm10", 4, 151.0f, true, NULL, NULL, MORNING, NULL},
+    {"pm10_251", "pm10", 4, 251.0f, true, NULL, NULL, MORNING, NULL},
+    {"pm10_351", "pm10", 4, 351.0f, true, NULL, NULL, MORNING, NULL},
+    {"pm10_451", "pm10", 4, 451.0f, true, NULL, NULL, MORNING, NULL},
+    {"pm10_invalid", "pm10", 4, 0.0f, false, NULL, NULL, MORNING, NULL},
     {"alerts_answer", "alerts", NO_SENSOR, 0, false, NULL, NULL, MORNING, "alerts.json"},
     {"alerts_donetsk", "alerts", NO_SENSOR, 0, false, "region", "donetsk", MORNING, "alerts.json"},
     {"alerts_lviv", "alerts", NO_SENSOR, 0, false, "region", "lviv", MORNING, "alerts.json"},

@@ -45,7 +45,7 @@ SDK = 2
 PARTITION = 196608
 RESERVE = 3 * 126 * 32
 PSRAM_TOTAL = 4 * 1024 * 1024
-STANDARD = ["alerts", "clock", "humidity", "temperature", "co2"]
+STANDARD = ["alerts", "clock", "humidity", "temperature", "co2", "pm25", "pm10"]
 
 
 def refusal(code):
@@ -324,6 +324,8 @@ class Handler(BaseHTTPRequestHandler):
                         "temp": {"valid": True, "value": temp, "age_ms": 900},
                         "hum": {"valid": True, "value": hum, "age_ms": 900},
                         "co2": {"valid": True, "value": 612.0, "age_ms": 1200},
+                        "pm25": {"valid": True, "value": 12.0, "age_ms": 400},
+                        "pm10": {"valid": True, "value": 20.0, "age_ms": 400},
                     },
                 )
             if path in ("/alerts", "/plugin/stats"):

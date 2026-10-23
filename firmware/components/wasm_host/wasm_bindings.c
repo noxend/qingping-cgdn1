@@ -13,7 +13,8 @@
 _Static_assert(GFX_W == WASM_GFX_W && GFX_H == WASM_GFX_H, "the module's frame is the SDK's");
 _Static_assert(GFX_KEEP == WASM_GFX_KEEP, "a module's palette reaches gfx_blit as it is");
 _Static_assert(SENSOR_TEMP == WASM_SENSOR_TEMP && SENSOR_HUM == WASM_SENSOR_HUM &&
-                   SENSOR_CO2 == WASM_SENSOR_CO2,
+                   SENSOR_CO2 == WASM_SENSOR_CO2 && SENSOR_PM25 == WASM_SENSOR_PM25 &&
+                   SENSOR_PM10 == WASM_SENSOR_PM10,
                "w_sensor_get passes a module's sensor id on as it is");
 
 static uint8_t level_of(int level) {

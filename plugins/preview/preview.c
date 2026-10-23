@@ -218,6 +218,8 @@ int main(int argc, char **argv) {
   host_set_reading(SENSOR_TEMP, 22.5f, true);
   host_set_reading(SENSOR_HUM, 45.0f, true);
   host_set_reading(SENSOR_CO2, 650.0f, true);
+  host_set_reading(SENSOR_PM25, 12.0f, true);
+  host_set_reading(SENSOR_PM10, 20.0f, true);
   for (int i = 3; i < argc; i++) {
     char *eq = strchr(argv[i], '=');
     if (eq) {
