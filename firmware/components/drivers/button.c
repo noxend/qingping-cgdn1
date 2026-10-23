@@ -14,9 +14,11 @@
 static const char *TAG = "button";
 
 static button_fn s_on_click;
+static button_fn s_on_hold;
 static button_fn s_on_long;
 static volatile bool s_armed;
 static volatile int s_clicks;
+static volatile int s_holds;
 static volatile int s_longs;
 
 // Low while the button is held: the stock firmware's button read is
@@ -42,6 +44,10 @@ static void button_task(void *arg) {
       s_clicks++;
       ESP_LOGI(TAG, "click");
       s_on_click();
+    } else if (ev == BUTTON_HOLD) {
+      s_holds++;
+      ESP_LOGI(TAG, "hold");
+      s_on_hold();
     } else if (ev == BUTTON_LONG) {
       s_longs++;
       ESP_LOGI(TAG, "long press");
@@ -50,8 +56,9 @@ static void button_task(void *arg) {
   }
 }
 
-void button_start(button_fn on_click, button_fn on_long) {
+void button_start(button_fn on_click, button_fn on_hold, button_fn on_long) {
   s_on_click = on_click;
+  s_on_hold = on_hold;
   s_on_long = on_long;
   gpio_config_t io = {
       .pin_bit_mask = 1ULL << BUTTON_GPIO,
@@ -72,5 +79,6 @@ void button_counts(button_counts_t *out) {
   out->armed = s_armed;
   out->level = gpio_get_level(BUTTON_GPIO);
   out->clicks = s_clicks;
+  out->holds = s_holds;
   out->longs = s_longs;
 }
