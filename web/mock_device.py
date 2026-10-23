@@ -22,6 +22,7 @@ Not a test oracle: the device's own checks are richer.
 
 import argparse
 import json
+import math
 import os
 import re
 import secrets
@@ -120,6 +121,15 @@ def standard_modules():
     return out
 
 
+def magnus_ratio(measured, corrected):
+    """How relative humidity scales when the temperature is corrected, as temp_offset.c does."""
+
+    def magnus(t):
+        return 17.62 * t / (243.12 + t)
+
+    return math.exp(magnus(measured) - magnus(corrected))
+
+
 class Device:
     """What the board would hold: the screens, the installed plugins, the install job."""
 
@@ -152,6 +162,7 @@ class Device:
         self.standard = standard_modules()
         self.enabled = ["clock", "alerts", "co2"]
         self.active = "clock"
+        self.temp_offset = 0.0
         # id -> {"manifest", "size", "values"}, in install order (the table's).
         self.installed = {
             pid: {"manifest": meta, "size": len(code), "values": {}}
@@ -331,6 +342,18 @@ class Handler(BaseHTTPRequestHandler):
                         "catalog": d.catalog(),
                         "enabled": [i for i in d.enabled if i in d.installed],
                         "night": {"enabled": False},
+                        "temp_offset": d.temp_offset,
+                    },
+                )
+            if path == "/sensors":
+                temp = round(23.4 + d.temp_offset, 1)
+                hum = round(min(41.0 * magnus_ratio(23.4, 23.4 + d.temp_offset), 100.0), 1)
+                return self.reply(
+                    200,
+                    {
+                        "temp": {"valid": True, "value": temp, "age_ms": 900},
+                        "hum": {"valid": True, "value": hum, "age_ms": 900},
+                        "co2": {"valid": True, "value": 612.0, "age_ms": 1200},
                     },
                 )
             if path in ("/alerts", "/plugin/stats"):
@@ -437,6 +460,12 @@ class Handler(BaseHTTPRequestHandler):
                     d.enabled = [i for i in body["enabled"] if i in d.installed]
                 if "active" in body:
                     d.active = body["active"]
+                if "temp_offset" in body:
+                    offset = body["temp_offset"]
+                    tenths = round(offset * 10) if isinstance(offset, (int, float)) else None
+                    if tenths is None or abs(tenths) > 30 or abs(offset * 10 - tenths) > 1e-6:
+                        return self.reply(400, {"error": "bad temp_offset"})
+                    d.temp_offset = tenths / 10
                 if body.get("screen") in d.installed:
                     d.installed[body["screen"]]["values"].update(body.get("values", {}))
             return self.reply(200, b"saved\n", "text/plain")

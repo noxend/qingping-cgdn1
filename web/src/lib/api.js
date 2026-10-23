@@ -85,6 +85,9 @@ export const useStatus = () => useSWR("/status", json, poll(8000));
 
 export const useAlerts = () => useSWR("/alerts", json, poll(8000));
 
+// Nothing is asked while `active` is false.
+export const useSensors = (active) => useSWR(active ? "/sensors" : null, json, poll(8000));
+
 // Polled because another tab or the device itself can change settings and plugins.
 export const useConfig = () => useSWR("/config", json, poll(15000));
 

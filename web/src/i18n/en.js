@@ -291,6 +291,10 @@ export const en = {
   "system.address": "Address",
   "system.device": "Device",
   "system.signOut": "Sign out",
+  "system.temperature": "Temperature",
+  "system.tempOffset": "Correction",
+  "system.tempNow": "Shown now: {value}",
+  "system.tempSave": "Save",
 
   "dev.title": "Developer",
   "dev.noAnswer": "{label}: the device did not answer",

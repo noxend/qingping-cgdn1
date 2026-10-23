@@ -295,6 +295,10 @@ export const uk = {
   "system.address": "Адреса",
   "system.device": "Пристрій",
   "system.signOut": "Вийти",
+  "system.temperature": "Температура",
+  "system.tempOffset": "Поправка",
+  "system.tempNow": "Зараз показує: {value}",
+  "system.tempSave": "Зберегти",
 
   "dev.title": "Розробка",
   "dev.noAnswer": "{label}: пристрій не відповів",
