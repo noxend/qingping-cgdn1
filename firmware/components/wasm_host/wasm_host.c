@@ -152,7 +152,9 @@ static const char *load(int i, const manifest_t *m, const char *text, int text_l
 
 // ---- boot ----------------------------------------------------------------------------------
 
-static const char *install(const uint8_t *received, uint32_t len, const char **name, int *changed);
+// Standard plugins whose stored module did not read at boot, put back by the tick.
+static const standard_t *s_restore[STANDARD_COUNT];
+static int s_restore_n;
 
 static void load_installed(const char *id) {
   uint8_t *code = NULL;
@@ -160,20 +162,12 @@ static void load_installed(const char *id) {
   store_err_t e =
       s_runtime_up ? store_read(id, &code, &len, psram_alloc, heap_caps_free) : STORE_ERR_FLASH;
   // A standard plugin whose stored module no longer reads (a power fault while the flash
-  // was written) comes back from its copy in the image, its settings kept.
+  // was written) comes back from its copy in the image, its settings kept. Not during
+  // the boot: the tick does it once the board is up, and until then it is listed failed.
   const standard_t *standard = standard_of(id);
   if (s_runtime_up && standard && (e == STORE_ERR_FLASH || e == STORE_ERR_HASH)) {
-    ESP_LOGW(TAG, "installed %s does not read (%s): the image's copy", id, store_err_code(e));
-    int changed = -1;
-    const char *name;
-    const char *why = install(standard->start, standard->end - standard->start, &name, &changed);
-    if (changed >= 0) {
-      if (why) {
-        ESP_LOGE(TAG, "standard %s restored but not loaded: %s", id, why);
-      }
-      return;
-    }
-    ESP_LOGE(TAG, "standard %s not restored: %s", id, why);
+    ESP_LOGW(TAG, "installed %s does not read (%s): restored after boot", id, store_err_code(e));
+    s_restore[s_restore_n++] = standard;
   }
   if (e != STORE_OK && store_size(id, &len) != STORE_OK) {
     len = 0;
@@ -192,6 +186,8 @@ static void load_installed(const char *id) {
     ESP_LOGE(TAG, "installed %s not loaded: %s", id, why);
   }
 }
+
+static const char *install(const uint8_t *received, uint32_t len, const char **name, int *changed);
 
 // The standard plugins, at the first boot and after a factory reset (which erases the
 // record). One already installed under the same id, the user's own or an earlier copy,
@@ -393,6 +389,24 @@ static int remove_now(const char *id) {
 
 // ---- the UI loop's tick --------------------------------------------------------------------
 
+// Puts back the next standard plugin that did not read at boot; -1 when none is due.
+static int restore_tick(void) {
+  static int ticks;
+  if (s_restore_n == 0 || ++ticks < WASM_RESTORE_AFTER_TICKS) {
+    return -1;
+  }
+  const standard_t *standard = s_restore[--s_restore_n];
+  int changed = -1;
+  const char *name;
+  const char *why = install(standard->start, standard->end - standard->start, &name, &changed);
+  if (why) {
+    ESP_LOGE(TAG, "standard %s not restored: %s", standard->id, why);
+  } else {
+    ESP_LOGW(TAG, "standard %s restored from the image", standard->id);
+  }
+  return changed;
+}
+
 int wasm_host_tick(void) {
   char remove[STORE_ID_MAX] = "";
   uint8_t *upload = NULL;
@@ -424,8 +438,9 @@ int wasm_host_tick(void) {
   }
   if (upload || standard) {
     job_end(why, name);
+    return changed;
   }
-  return changed;
+  return restore_tick();
 }
 
 // ---- HTTP ----------------------------------------------------------------------------------

@@ -438,9 +438,22 @@ static void timers_stop(int index) {
 // with a flipped bit: the boot puts back the image's copies, their settings kept.
 static void unreadable_standard(void) {
   cJSON *root = plugins();
+  check(strcmp(state_of(root, "co2"), "failed") == 0 &&
+            strcmp(state_of(root, "humidity"), "failed") == 0,
+        "standard plugins whose module does not read are listed failed at boot");
+  cJSON_Delete(root);
+  for (int t = 0; t < WASM_RESTORE_AFTER_TICKS - 1; t++) {
+    wasm_host_tick();
+  }
+  root = plugins();
+  check(strcmp(state_of(root, "co2"), "failed") == 0, "and left alone while the board comes up");
+  cJSON_Delete(root);
+  wasm_host_tick();
+  wasm_host_tick();
+  root = plugins();
   check(strcmp(state_of(root, "co2"), "ready") == 0 &&
             strcmp(state_of(root, "humidity"), "ready") == 0,
-        "standard plugins whose module does not read run from the image");
+        "then the tick runs them from the image");
   cJSON_Delete(root);
   char value[8];
   settings_get("co2", "alarm", value, sizeof(value), "");
