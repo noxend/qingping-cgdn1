@@ -8,7 +8,7 @@
 | `plugins/` | the plugin SDK, the build and preview scripts, the standard plugins and examples: [plugins/README.md](../plugins/README.md) |
 | `web/` | the web interface and a mock of the device's API: [web/README.md](../web/README.md) |
 | `site/` | the root page of `cgdn1.swithy.com`: [site/README.md](../site/README.md) |
-| `tools/` | `publish_fw.py` and `publish_web.py`, which sign and publish releases |
+| `tools/` | `publish_fw.mjs` and `publish_web.mjs`, which sign and publish releases |
 | `docs/` | these guides, [hardware.md](hardware.md), release notes, images |
 
 ## Formatting
