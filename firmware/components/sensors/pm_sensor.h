@@ -11,6 +11,9 @@
 // device cannot be set up, after which pm_sensor_read fails.
 bool pm_sensor_init(void);
 
+// Cuts the sensor's supply; reads fail from then on.
+void pm_sensor_power_off(void);
+
 // Reads one frame and writes what the stock shows for it, 0 to 999 µg/m³. False on a
 // bus error or a frame that does not check out.
 bool pm_sensor_read(uint16_t *pm25, uint16_t *pm10);

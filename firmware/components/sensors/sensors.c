@@ -23,6 +23,7 @@ static const char *TAG = "sensors";
 #define BUS_RESET_TICKS 30  // nothing on the bus answered for this long: reset it
 #define FIRST_READ_WAIT_MS 500
 #define PM_FRAMES_BEFORE_VALID 3  // the stock counts its first two frames as warm-up
+#define PM_MISSES_TO_WARN 5       // a missed frame now and then, or the start, is not news
 #define TEMP_OFFSET_KEY "temp_offset"
 
 // Older than this and a reading is reported invalid: a few sampling periods.
@@ -44,6 +45,7 @@ static slot_t s_slots[SENSOR_COUNT];
 static SemaphoreHandle_t s_first_read;  // given once the sampler has tried the SHT4x
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
 static atomic_int s_temp_offset;  // tenths of a degree
+static atomic_bool s_pm_off;      // set by sensors_power_off
 
 static void store(sensor_id_t id, float value) {
   int64_t now = esp_timer_get_time();
@@ -153,6 +155,7 @@ static void sampler(void *arg) {
   bool scd_ok = true;
   bool pm_ok = true;
   int pm_frames = 0;
+  int pm_misses = 0;  // frames missed in a row
   int tick = 0;
   int quiet_ticks = 0;   // ticks since the SCD40 last delivered a value
   int silent_ticks = 0;  // ticks since any sensor answered
@@ -199,10 +202,13 @@ static void sampler(void *arg) {
       any_ok |= r == SCD4X_OK;
       note_state("SCD40", &scd_ok, r == SCD4X_OK);
     }
-    if (pm_ready) {
+    if (pm_ready && !atomic_load(&s_pm_off)) {
       bool ok = read_pm(&pm_frames);
       any_ok |= ok;
-      note_state("PM sensor", &pm_ok, ok);
+      pm_misses = ok ? 0 : pm_misses + 1;
+      if (ok || pm_misses >= PM_MISSES_TO_WARN) {
+        note_state("PM sensor", &pm_ok, ok);
+      }
     }
     // All sensors silent for a while: a slave holding SDA low looks exactly like
     // this, and only a bus reset (SCL clocked out) frees it.
@@ -213,6 +219,11 @@ static void sampler(void *arg) {
       sensor_bus_reset();
     }
   }
+}
+
+void sensors_power_off(void) {
+  atomic_store(&s_pm_off, true);
+  pm_sensor_power_off();
 }
 
 void sensors_start(void) {
