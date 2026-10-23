@@ -18,7 +18,7 @@ export function DeviceCard({ status }) {
   const footer = (
     <div className="flex w-full flex-col gap-3">
       {canRestart && (
-        <div className="flex w-full gap-3">
+        <div className="flex w-full flex-wrap gap-3">
           <PowerAction
             path="/reboot"
             label={t("system.restart")}
