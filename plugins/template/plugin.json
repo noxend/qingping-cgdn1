@@ -1,0 +1,19 @@
+{
+  "id": "template",
+  "name": { "en": "Template", "uk": "Шаблон" },
+  "description": {
+    "en": "A line of text, the time and the temperature",
+    "uk": "Рядок тексту, час і температура"
+  },
+  "category": "examples",
+  "version": "1.1.0",
+  "hosts": [],
+  "params": [
+    {
+      "key": "text",
+      "label": { "en": "Text", "uk": "Текст" },
+      "type": "text",
+      "def": "Hello"
+    }
+  ]
+}

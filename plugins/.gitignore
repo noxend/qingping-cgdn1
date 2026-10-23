@@ -1,0 +1,7 @@
+# What build.sh and preview.sh write: each plugin folder gets its <folder>.wasm and
+# preview/ frames, and the preview tool its build.
+*.wasm
+*/preview/
+examples/*/preview/
+standard/*/preview/
+preview/build/

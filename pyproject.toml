@@ -1,0 +1,4 @@
+[tool.ruff]
+line-length = 100
+# esp_psram is ESP-IDF's, copied unchanged to be overridden.
+extend-exclude = ["*.md", "firmware/components/esp_psram"]

@@ -1,0 +1,11 @@
+build/
+# Side builds: idf.py -B build-<name> (the migration build, release candidates).
+build-*/
+sdkconfig
+sdkconfig.old
+components/secrets/secrets.h
+# Pulled by the component manager from components/http and components/net idf_component.yml.
+managed_components/
+dependencies.lock
+# The web manifest signing key lives in ~/.config/cgdn1, never here; ignored in case.
+web_signing_key.pem

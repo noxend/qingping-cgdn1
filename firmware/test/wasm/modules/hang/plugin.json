@@ -1,0 +1,13 @@
+{
+  "id": "hang_test",
+  "name": {
+    "en": "Hang test"
+  },
+  "description": {
+    "en": "Test module that never returns from draw"
+  },
+  "category": "other",
+  "version": "0.0.1",
+  "hosts": [],
+  "params": []
+}

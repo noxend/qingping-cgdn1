@@ -1,0 +1,41 @@
+clock_default off
+clock_12h off
+clock_12h_pm off
+clock_seconds off
+clock_ymd off
+clock_mdy off
+clock_unset off
+temp_23_4 off
+temp_minus_5 off
+temp_invalid off
+temp_fahrenheit off
+temp_tie off
+temp_23_45 off
+temp_minus_0 off
+temp_99_95 off
+temp_f_minus_40 off
+co2_420 #00FF00
+co2_950 #FF9600
+co2_1234 #FF0000
+co2_2500 #FF0000
+co2_invalid off
+co2_warn_1000 #00FF00
+co2_alarm_low #FF0000
+co2_399_5 #00FF00
+hum_45 #00FF00
+hum_5 #FF0000
+hum_1 #FF0000
+hum_100 #FF0000
+hum_99_5 #FF0000
+hum_invalid off
+hum_31 #FF9600
+hum_65 #FF9600
+hum_75 #FF0000
+hum_80_both #FF0000
+alerts_answer #FF0000 {"fetch_ok":1,"fetch_fail":0,"http":200,"err":"ESP_OK","alerts":24,"draws":1,"region":"Київська область","level":"red"}
+alerts_donetsk #FF0000 {"fetch_ok":1,"fetch_fail":0,"http":200,"err":"ESP_OK","alerts":24,"draws":1,"region":"Донецька область","level":"red"}
+alerts_lviv off {"fetch_ok":1,"fetch_fail":0,"http":200,"err":"ESP_OK","alerts":24,"draws":1,"region":"Львівська область","level":"none"}
+alerts_odesa #FF9600 {"fetch_ok":1,"fetch_fail":0,"http":200,"err":"ESP_OK","alerts":24,"draws":1,"region":"Одеська область","level":"yellow"}
+alerts_cut off {"fetch_ok":0,"fetch_fail":1,"http":200,"err":"ESP_OK","alerts":0,"draws":1,"region":"Київська область","level":"none"}
+alerts_calm off {"fetch_ok":1,"fetch_fail":0,"http":200,"err":"ESP_OK","alerts":0,"draws":1,"region":"Київська область","level":"none"}
+alerts_none off {"fetch_ok":0,"fetch_fail":0,"http":0,"err":"ESP_OK","alerts":0,"draws":1,"region":"Київська область","level":"none"}

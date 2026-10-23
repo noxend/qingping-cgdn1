@@ -1,0 +1,27 @@
+{
+  "id": "nbu_rate",
+  "name": { "en": "NBU exchange rate", "uk": "Курс НБУ" },
+  "description": {
+    "en": "The National Bank of Ukraine's official rate of the hryvnia to the currency you choose, every half hour",
+    "uk": "Офіційний курс гривні до обраної валюти від Нацбанку, щопівгодини"
+  },
+  "category": "finance",
+  "version": "1.1.0",
+  "hosts": ["bank.gov.ua"],
+  "params": [
+    {
+      "key": "currency",
+      "label": { "en": "Currency", "uk": "Валюта" },
+      "type": "select",
+      "options": [
+        { "key": "usd", "label": { "en": "USD" } },
+        { "key": "eur", "label": { "en": "EUR" } },
+        { "key": "pln", "label": { "en": "PLN" } },
+        { "key": "gbp", "label": { "en": "GBP" } },
+        { "key": "chf", "label": { "en": "CHF" } },
+        { "key": "czk", "label": { "en": "CZK" } }
+      ],
+      "def": "usd"
+    }
+  ]
+}

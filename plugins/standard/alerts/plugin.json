@@ -1,0 +1,69 @@
+{
+  "id": "alerts",
+  "name": { "en": "Air raid alerts", "uk": "Карта тривог" },
+  "description": {
+    "en": "A map of air raid alerts in Ukraine, with the LED for the region you choose",
+    "uk": "Карта повітряних тривог України з індикатором по вибраній області"
+  },
+  "category": "security",
+  "version": "1.0.0",
+  "hosts": ["neptun.in.ua"],
+  "params": [
+    {
+      "key": "region",
+      "label": { "en": "Region for the LED", "uk": "Область для індикатора" },
+      "type": "select",
+      "options": [
+        { "key": "vinnytsia", "label": { "en": "Vinnytsia Oblast", "uk": "Вінницька область" } },
+        { "key": "volyn", "label": { "en": "Volyn Oblast", "uk": "Волинська область" } },
+        {
+          "key": "dnipropetrovsk",
+          "label": { "en": "Dnipropetrovsk Oblast", "uk": "Дніпропетровська область" }
+        },
+        { "key": "donetsk", "label": { "en": "Donetsk Oblast", "uk": "Донецька область" } },
+        { "key": "zhytomyr", "label": { "en": "Zhytomyr Oblast", "uk": "Житомирська область" } },
+        {
+          "key": "zakarpattia",
+          "label": { "en": "Zakarpattia Oblast", "uk": "Закарпатська область" }
+        },
+        {
+          "key": "zaporizhzhia",
+          "label": { "en": "Zaporizhzhia Oblast", "uk": "Запорізька область" }
+        },
+        {
+          "key": "ivano_frankivsk",
+          "label": { "en": "Ivano-Frankivsk Oblast", "uk": "Івано-Франківська область" }
+        },
+        { "key": "kyiv_oblast", "label": { "en": "Kyiv Oblast", "uk": "Київська область" } },
+        {
+          "key": "kirovohrad",
+          "label": { "en": "Kirovohrad Oblast", "uk": "Кіровоградська область" }
+        },
+        { "key": "luhansk", "label": { "en": "Luhansk Oblast", "uk": "Луганська область" } },
+        { "key": "lviv", "label": { "en": "Lviv Oblast", "uk": "Львівська область" } },
+        { "key": "mykolaiv", "label": { "en": "Mykolaiv Oblast", "uk": "Миколаївська область" } },
+        { "key": "odesa", "label": { "en": "Odesa Oblast", "uk": "Одеська область" } },
+        { "key": "poltava", "label": { "en": "Poltava Oblast", "uk": "Полтавська область" } },
+        { "key": "rivne", "label": { "en": "Rivne Oblast", "uk": "Рівненська область" } },
+        { "key": "sumy", "label": { "en": "Sumy Oblast", "uk": "Сумська область" } },
+        { "key": "ternopil", "label": { "en": "Ternopil Oblast", "uk": "Тернопільська область" } },
+        { "key": "kharkiv", "label": { "en": "Kharkiv Oblast", "uk": "Харківська область" } },
+        { "key": "kherson", "label": { "en": "Kherson Oblast", "uk": "Херсонська область" } },
+        {
+          "key": "khmelnytskyi",
+          "label": { "en": "Khmelnytskyi Oblast", "uk": "Хмельницька область" }
+        },
+        { "key": "cherkasy", "label": { "en": "Cherkasy Oblast", "uk": "Черкаська область" } },
+        {
+          "key": "chernivtsi",
+          "label": { "en": "Chernivtsi Oblast", "uk": "Чернівецька область" }
+        },
+        { "key": "chernihiv", "label": { "en": "Chernihiv Oblast", "uk": "Чернігівська область" } },
+        { "key": "crimea", "label": { "en": "Crimea", "uk": "Автономна Республіка Крим" } },
+        { "key": "kyiv", "label": { "en": "Kyiv", "uk": "м. Київ" } },
+        { "key": "sevastopol", "label": { "en": "Sevastopol", "uk": "Севастополь" } }
+      ],
+      "def": "kyiv_oblast"
+    }
+  ]
+}

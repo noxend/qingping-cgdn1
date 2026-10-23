@@ -1,0 +1,13 @@
+{
+  "id": "blitbad",
+  "name": {
+    "en": "blitbad"
+  },
+  "description": {
+    "en": "Test module that blits a picture outside its memory"
+  },
+  "category": "other",
+  "version": "0.0.1",
+  "hosts": [],
+  "params": []
+}

@@ -1,0 +1,3 @@
+# The WebAssembly runtime for run-time loaded plugins (WAMR), Espressif's packaging.
+dependencies:
+  espressif/wasm-micro-runtime: "==2.4.0~1"

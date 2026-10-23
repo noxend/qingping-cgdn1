@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      - name: Install
+        run: npm ci
+
+      - name: Format check
+        run: npm run format:check
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+  # The plugins on this computer: the standard ones against their golden frames, and
+  # every plugin through the preview authors use. Both link the firmware's text.c,
+  # loader and bindings, so this is what notices when those stop building off the device.
+  plugins:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/wasi-sdk-34.0-x86_64-linux
+          key: wasi-sdk-34-x86_64-linux
+
+      - name: wasi-sdk
+        run: plugins/get-wasi-sdk.sh
+
+      - name: Standard plugins against the golden frames
+        run: firmware/test/plugins/run.sh "$RUNNER_TEMP/frames"
+
+      - name: Preview of every plugin
+        run: |
+          for plugin in plugins/standard/* plugins/examples/* plugins/template; do
+            plugins/preview.sh "$plugin"
+          done

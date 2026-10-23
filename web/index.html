@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CGDN1</title>
+    <script>
+      // Apply the theme before first paint so there is no flash of the wrong one.
+      (function () {
+        try {
+          var stored = localStorage.getItem("heroui-theme");
+          var dark =
+            !stored || stored === "system"
+              ? window.matchMedia("(prefers-color-scheme: dark)").matches
+              : stored === "dark";
+          var name = dark ? "dark" : "light";
+          var el = document.documentElement;
+          el.classList.add(name);
+          el.setAttribute("data-theme", name);
+          el.style.background = dark ? "#161618" : "#fafafa";
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

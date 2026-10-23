@@ -1,0 +1,59 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+
+/* System faces only: the page is served by the device, often offline. */
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+
+/* The sidebar has its own surface, one step off the page in both themes. */
+@theme inline {
+  --color-sidebar: var(--sidebar);
+}
+
+/* The interface is monochrome: black, grey and white, colour comes only from
+   live data (alert levels). The accent is the foreground inverted, so primary
+   buttons read as near-black on light and near-white on dark. Inputs get a
+   border so they stand off the card they sit on. */
+:root,
+[data-theme="light"] {
+  --sidebar: oklch(0.9711 0 0);
+  --accent: oklch(0.2178 0 0);
+  --accent-foreground: oklch(0.9851 0 0);
+  --focus: oklch(0.5486 0 0);
+  --muted: oklch(0.52 0 0); /* 5:1 on the page, over the 4.5 small text needs */
+  --radius: 0.625rem;
+  --field-border-width: 1px;
+}
+
+.dark,
+[data-theme="dark"] {
+  /* A visible step between each layer: page < card < control. */
+  --sidebar: oklch(0.1127 0 0);
+  --background: oklch(0.1448 0 0);
+  --surface: oklch(0.2178 0 0);
+  --overlay: oklch(0.2451 0 0);
+  --default: oklch(0.2881 0 0);
+  --border: oklch(0.3016 0 0);
+  --separator: oklch(0.2726 0 0);
+  --muted: oklch(0.6798 0 0);
+  --accent: oklch(0.9491 0 0);
+  --accent-foreground: oklch(0.1448 0 0);
+  --focus: oklch(0.7044 0 0);
+  --radius: 0.625rem;
+
+  --field-background: oklch(0.2726 0 0);
+  --field-border: oklch(0.3621 0 0);
+  --field-border-width: 1px;
+  --field-placeholder: oklch(0.5916 0 0);
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tabular figures so live counts do not jitter as they change. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,15 @@
+{
+  "id": "netevil",
+  "name": {
+    "en": "Net test"
+  },
+  "description": {
+    "en": "Test module that asks for hosts it may not reach"
+  },
+  "category": "other",
+  "version": "0.0.1",
+  "hosts": [
+    "bank.gov.ua"
+  ],
+  "params": []
+}

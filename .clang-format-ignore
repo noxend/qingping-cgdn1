@@ -1,0 +1,6 @@
+firmware/components/u8g2/*
+firmware/components/esp_psram/*
+firmware/components/esp_psram/*/*
+firmware/components/esp_psram/*/*/*
+firmware/components/esp_psram/*/*/*/*
+firmware/components/qrcodegen/*

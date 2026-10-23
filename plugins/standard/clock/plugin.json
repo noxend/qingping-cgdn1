@@ -1,0 +1,40 @@
+{
+  "id": "clock",
+  "name": { "en": "Clock", "uk": "Годинник" },
+  "description": {
+    "en": "The time and date in large type, in the format you choose",
+    "uk": "Час і дата великим шрифтом, з вибором формату"
+  },
+  "category": "time",
+  "version": "1.0.0",
+  "hosts": [],
+  "params": [
+    {
+      "key": "time_format",
+      "label": { "en": "Time format", "uk": "Формат часу" },
+      "type": "select",
+      "options": [
+        { "key": "24h", "label": { "en": "24-hour", "uk": "24 години" } },
+        { "key": "12h", "label": { "en": "12-hour (AM/PM)", "uk": "12 годин (AM/PM)" } }
+      ],
+      "def": "24h"
+    },
+    {
+      "key": "date_format",
+      "label": { "en": "Date format", "uk": "Формат дати" },
+      "type": "select",
+      "options": [
+        { "key": "dmy", "label": { "en": "DD.MM.YYYY", "uk": "ДД.ММ.РРРР" } },
+        { "key": "ymd", "label": { "en": "YYYY-MM-DD", "uk": "РРРР-ММ-ДД" } },
+        { "key": "mdy", "label": { "en": "MM/DD/YYYY", "uk": "ММ/ДД/РРРР" } }
+      ],
+      "def": "dmy"
+    },
+    {
+      "key": "seconds",
+      "label": { "en": "Show seconds", "uk": "Показувати секунди" },
+      "type": "toggle",
+      "def": "0"
+    }
+  ]
+}

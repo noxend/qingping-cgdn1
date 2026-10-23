@@ -1,0 +1,9 @@
+BasedOnStyle: LLVM
+IndentWidth: 2
+ColumnLimit: 100
+SpacesBeforeTrailingComments: 2
+SpaceAfterCStyleCast: true
+AllowShortFunctionsOnASingleLine: None
+# Keep the existing include order and comment wrapping: formatting changes whitespace only.
+SortIncludes: Never
+ReflowComments: Never

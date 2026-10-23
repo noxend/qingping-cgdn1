@@ -1,0 +1,15 @@
+{
+  "id": "netbad",
+  "name": {
+    "en": "Net bad test"
+  },
+  "description": {
+    "en": "Test module that names a bad buffer, then traps"
+  },
+  "category": "other",
+  "version": "0.0.1",
+  "hosts": [
+    "bank.gov.ua"
+  ],
+  "params": []
+}

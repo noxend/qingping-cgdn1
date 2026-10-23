@@ -1,0 +1,67 @@
+CONFIG_IDF_TARGET="esp32"
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+# Roll back to the previous app if the new one does not confirm itself.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+# Keep the bootloader's RTC watchdog running into the app: system/rollback.c feeds it while
+# an image is unconfirmed and turns it off once confirmed, so a hang before
+# confirmation resets and rolls back. The bootloader is not updated over OTA:
+# this must be flashed over UART before the case is sealed.
+CONFIG_BOOTLOADER_WDT_ENABLE=y
+CONFIG_BOOTLOADER_WDT_DISABLE_IN_USER_CODE=y
+CONFIG_BOOTLOADER_WDT_TIME_MS=60000
+# A starved task is a crash (reboot + boot-loop counter), not just a log line.
+CONFIG_ESP_TASK_WDT_PANIC=y
+CONFIG_SPI_FLASH_YIELD_DURING_ERASE=y
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+CONFIG_LWIP_MAX_SOCKETS=10
+# This unit's eFuse stores a mismatched MAC CRC (Qingping custom programming),
+# which makes generic ESP-IDF abort in PHY init. Accept the device's real MAC
+# despite the bad CRC fuse instead of refusing it.
+CONFIG_ESP_MAC_IGNORE_MAC_CRC_ERROR=y
+
+# OTA images must carry an ECDSA signature (secure boot v1 scheme, software verified in
+# esp_ota_end); the key file is gitignored. The bootloader stays unchanged.
+CONFIG_SECURE_SIGNED_APPS_NO_SECURE_BOOT=y
+CONFIG_SECURE_SIGNED_APPS_ECDSA_SCHEME=y
+CONFIG_SECURE_SIGNED_ON_UPDATE_NO_SECURE_BOOT=y
+CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y
+CONFIG_SECURE_BOOT_SIGNING_KEY="secure_boot_signing_key.pem"
+
+# Software bignum for TLS and the ECDSA manifest checks. With the hardware MPI a
+# panic on task net asserted in spinlock_release inside esp_crypto_mpi_enable_periph_clk
+# (2026-10-20), and the "wdt" resets of that night never produced a crash record; with
+# software bignum the device ran 13 h and more without either. The hardware MPI stays off
+# until that reset is understood (journal screen-plugins/soak/2026-10-19-wdt-hunt-plan.md).
+CONFIG_MBEDTLS_HARDWARE_MPI=n
+# TLS sessions in PSRAM when the board has it, internal RAM otherwise: heap_large_install.
+CONFIG_MBEDTLS_CUSTOM_MEM_ALLOC=y
+
+# No debugger is ever attached to the sealed device. With this on, a panic that reads the
+# OCD debug-enable bit disables every watchdog, sets a breakpoint and returns to the
+# faulting code (esp_system/panic.c), the one configured path that leaves the chip running
+# with no watchdog. Off, a panic always ends in a reset.
+CONFIG_ESP_DEBUG_OCDAWARE=n
+
+# PSRAM for run-time loaded (WASM) plugins and for large or passing buffers (TLS sessions,
+# network bodies, JSON trees, preview frames: heap_large_* in heap_internal.h): CAPS_ALLOC
+# keeps every ordinary malloc, Wi-Fi and lwIP buffer in internal RAM, so only explicit PSRAM
+# allocations land there. A board without working PSRAM still boots, with the WASM host off
+# and those buffers in internal RAM. This chip is
+# revision v1.0, so the cache workaround (-mfix-esp32-psram-cache-issue) is on by default.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_USE_CAPS_ALLOC=y
+CONFIG_SPIRAM_IGNORE_NOTFOUND=y
+
+# WAMR for WASM plugins: the classic interpreter (the only one that can cap the
+# instructions per call), MVP modules, no AOT, no WASI, no threads, no app framework,
+# no builtin libc: a module brings its own (plugins/sdk/libc_mini.c), so the limit counts it.
+# The options with no Kconfig switch are in the top CMakeLists.txt.
+CONFIG_WAMR_INTERP_CLASSIC=y
+CONFIG_WAMR_ENABLE_AOT=n
+CONFIG_WAMR_ENABLE_LIBC_WASI=n
+CONFIG_WAMR_ENABLE_LIB_PTHREAD=n
+CONFIG_WAMR_ENABLE_APP_FRAMEWORK=n
+CONFIG_WAMR_ENABLE_LIBC_BUILTIN=n

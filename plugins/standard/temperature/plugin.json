@@ -1,0 +1,23 @@
+{
+  "id": "temperature",
+  "name": { "en": "Temperature", "uk": "Температура" },
+  "description": {
+    "en": "The air temperature from the SHT4x sensor, in degrees Celsius or Fahrenheit",
+    "uk": "Температура повітря з давача SHT4x, у градусах Цельсія або Фаренгейта"
+  },
+  "category": "climate",
+  "version": "1.0.0",
+  "hosts": [],
+  "params": [
+    {
+      "key": "unit",
+      "label": { "en": "Unit", "uk": "Одиниця" },
+      "type": "select",
+      "options": [
+        { "key": "c", "label": { "en": "°C" } },
+        { "key": "f", "label": { "en": "°F" } }
+      ],
+      "def": "c"
+    }
+  ]
+}

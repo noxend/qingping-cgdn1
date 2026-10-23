@@ -1,0 +1,12 @@
+{
+  "id": "humidity",
+  "name": { "en": "Humidity", "uk": "Вологість" },
+  "description": {
+    "en": "The relative humidity from the SHT4x sensor, with the LED showing whether it is comfortable",
+    "uk": "Відносна вологість повітря з давача SHT4x з індикатором комфорту"
+  },
+  "category": "climate",
+  "version": "1.0.0",
+  "hosts": [],
+  "params": []
+}

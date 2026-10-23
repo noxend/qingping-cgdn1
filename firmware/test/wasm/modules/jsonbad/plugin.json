@@ -1,0 +1,13 @@
+{
+  "id": "jsonbad",
+  "name": {
+    "en": "jsonbad"
+  },
+  "description": {
+    "en": "Test module that reads JSON past its memory"
+  },
+  "category": "other",
+  "version": "0.0.1",
+  "hosts": [],
+  "params": []
+}

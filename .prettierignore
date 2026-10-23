@@ -1,0 +1,10 @@
+# Generated or vendored, and the lockfile npm rewrites on every install.
+package-lock.json
+firmware/
+# Build output; prettier only reads the root .gitignore, not these nested ones.
+web/dist/
+web/dist-hosted/
+plugins/preview/build/
+# Prettier pads markdown table columns to the longest cell (300+ characters in
+# docs/hardware.md).
+*.md

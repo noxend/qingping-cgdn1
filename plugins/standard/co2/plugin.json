@@ -1,0 +1,25 @@
+{
+  "id": "co2",
+  "name": { "en": "CO2" },
+  "description": {
+    "en": "The carbon dioxide level from the SCD40 sensor, with the LED showing how fresh the air is",
+    "uk": "Рівень вуглекислого газу з давача SCD40 з індикатором свіжості повітря"
+  },
+  "category": "climate",
+  "version": "1.0.0",
+  "hosts": [],
+  "params": [
+    {
+      "key": "warn_ppm",
+      "label": { "en": "Amber from, ppm", "uk": "Жовтий індикатор від, ppm" },
+      "type": "number",
+      "def": "800"
+    },
+    {
+      "key": "alarm_ppm",
+      "label": { "en": "Red from, ppm", "uk": "Червоний індикатор від, ppm" },
+      "type": "number",
+      "def": "1200"
+    }
+  ]
+}

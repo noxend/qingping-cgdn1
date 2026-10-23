@@ -1,0 +1,16 @@
+# Flash dumps and stock firmware are Qingping's code and stay out of the repository.
+*.bin
+dumps/
+# Our own generated asset (plugins/standard/alerts/gen_alert_map.py), embedded in the alerts plugin.
+!plugins/standard/alerts/map.bin
+.DS_Store
+
+# Session-local Claude Code data (journals, memory live under ~/.claude).
+.claude/
+
+# Dependencies of the root workspace.
+node_modules/
+# The OTA signing key: never committed. Losing it means the device accepts no further OTA image.
+firmware/secure_boot_signing_key.pem
+# Python bytecode the tools and tests leave beside the scripts they import.
+__pycache__/
