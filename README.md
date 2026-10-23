@@ -21,8 +21,7 @@ small plugin, all set up from a web interface in English or Ukrainian.
 - **Signed updates over Wi-Fi** that roll back by themselves when a new version does not start.
 
 It does not connect to Apple Home, Home Assistant or the Qingping app yet (HomeKit is planned to be
-looked at, with a Home Assistant API as the fallback), and it does not read PM2.5; the full list is
-in [using.md](docs/using.md#what-it-does-not-do).
+looked at, with a Home Assistant API as the fallback); the full list is in [using.md](docs/using.md#what-it-does-not-do).
 
 ## Documentation
 

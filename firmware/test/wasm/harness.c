@@ -188,7 +188,8 @@ static char *slurp_text(const char *path);
 static void check_instructions(const char *dir, const char *alerts_dir) {
   static const char *const NAMES[] = {"init",       "on_event", "draw", "on_config",
                                       "net_buffer", "on_net",   "led"};
-  static const char *const PLUGINS[] = {"clock", "temperature", "co2", "humidity", "alerts"};
+  static const char *const PLUGINS[] = {"clock",  "temperature", "co2", "humidity",
+                                        "alerts", "pm25",        "pm10"};
   // on_net before draw: the draw after it has the alerts to fill in.
   static const wasm_fn_t ORDER[] = {WASM_FN_INIT,     WASM_FN_ON_CONFIG, WASM_FN_ON_NET,
                                     WASM_FN_ON_EVENT, WASM_FN_DRAW,      WASM_FN_LED};
@@ -197,6 +198,8 @@ static void check_instructions(const char *dir, const char *alerts_dir) {
   host_set_reading(SENSOR_HUM, 100.0f, true);
   host_set_reading(SENSOR_TEMP, -40.5f, true);
   host_set_reading(SENSOR_CO2, 2500.0f, true);
+  host_set_reading(SENSOR_PM25, 999.0f, true);
+  host_set_reading(SENSOR_PM10, 999.0f, true);
   for (size_t p = 0; p < sizeof(PLUGINS) / sizeof(PLUGINS[0]); p++) {
     wasm_mod_t m;
     uint8_t *code = NULL;

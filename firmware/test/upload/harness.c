@@ -282,14 +282,15 @@ static bool count_missing(const char *id, const char *text, int len, void *ctx) 
 // A device's first boot: the standard plugins installed, in their order.
 static void first_boot(void) {
   cJSON *root = plugins();
-  static const char *const ORDER[] = {"alerts", "clock", "humidity", "temperature", "co2"};
-  bool all = installed_n(root) == 5;
-  for (int k = 0; k < 5 && all; k++) {
+  static const char *const ORDER[] = {"alerts", "clock", "humidity", "temperature",
+                                      "co2",    "pm25",  "pm10"};
+  bool all = installed_n(root) == 7;
+  for (int k = 0; k < 7 && all; k++) {
     const cJSON *it = cJSON_GetArrayItem(cJSON_GetObjectItem(root, "installed"), k);
     all = strcmp(cJSON_GetObjectItem(it, "id")->valuestring, ORDER[k]) == 0 &&
           strcmp(state_of(root, ORDER[k]), "ready") == 0;
   }
-  check(all, "the first boot installs the five standard plugins, in order, running");
+  check(all, "the first boot installs the seven standard plugins, in order, running");
   cJSON_Delete(root);
   size_t len = 0;
   check(settings_blob_get("defaults", NULL, &len) == ESP_OK, "and records that it did");
@@ -302,7 +303,7 @@ static void first_boot(void) {
   wasm_host_tick();
   root = plugins();
   size_t n = 0;
-  check(installed_n(root) == 4 && !installed(root, "clock") &&
+  check(installed_n(root) == 6 && !installed(root, "clock") &&
             settings_ns_blob_get("cfg", "clock", NULL, &n) != ESP_OK,
         "the tick deletes it, with its settings");
   cJSON_Delete(root);
@@ -316,7 +317,7 @@ static void first_boot(void) {
 // The next boot: a deleted standard plugin stays deleted until it is installed again.
 static void second_boot(void) {
   cJSON *root = plugins();
-  check(installed_n(root) == 4 && !installed(root, "clock"),
+  check(installed_n(root) == 6 && !installed(root, "clock"),
         "after a reboot the deleted standard plugin stays deleted");
   cJSON_Delete(root);
   check(post_id("/plugins/install", "nope") == 400, "installing an unknown standard id: 400");
@@ -405,7 +406,7 @@ static void until_full(void) {
   cJSON_ArrayForEach(it, cJSON_GetObjectItem(root, "installed")) {
     all_run = all_run && strcmp(cJSON_GetObjectItem(it, "state")->valuestring, "ready") == 0;
   }
-  check(root && n == kept + 5 && all_run, "GET /plugins lists every plugin, each running");
+  check(root && n == kept + 7 && all_run, "GET /plugins lists every plugin, each running");
   cJSON_Delete(root);
   bool drawn = true;
   for (int i = 0; i < plugins_count(); i++) {

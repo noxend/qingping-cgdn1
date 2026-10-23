@@ -16,7 +16,7 @@ trap 'rm -rf "$BUILD"' EXIT
 
 MODS="$BUILD/modules"
 mkdir -p "$MODS"
-for m in clock temperature co2 humidity alerts; do
+for m in clock temperature co2 humidity alerts pm25 pm10; do
   "$PLUGINS/build.sh" "$PLUGINS/standard/$m" "$MODS/$m.wasm" >/dev/null
 done
 "$PLUGINS/build.sh" "$PLUGINS/examples/nbu" "$MODS/nbu.wasm" >/dev/null

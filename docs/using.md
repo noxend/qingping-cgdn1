@@ -15,6 +15,8 @@ Each screen is a plugin. The ones that come with the firmware:
 | [Temperature](../plugins/standard/temperature/README.md) | °C or °F, one decimal | off |
 | [Humidity](../plugins/standard/humidity/README.md) | relative humidity, % | green, amber or red for comfort |
 | [CO2](../plugins/standard/co2/README.md) | ppm | green, amber or red at levels you set |
+| [PM2.5](../plugins/standard/pm25/README.md) | fine particles, µg/m³ | six colours, the stock firmware's levels |
+| [PM10](../plugins/standard/pm10/README.md) | coarse particles, µg/m³ | six colours, the stock firmware's levels |
 | [Air raid alerts](../plugins/standard/alerts/README.md) | map of Ukraine's regions under alert | red or amber for the region you pick |
 
 ![The screens](images/screens/all.png)
@@ -166,7 +168,6 @@ laptops from the last ten years have it.
 - No smart home connection yet: no Apple Home (HomeKit), no Home Assistant, no Qingping or Mi Home
   app. HomeKit support is planned to be looked at later; if it does not work out, the fallback is
   an API for Home Assistant.
-- No PM2.5 or PM10: the particle sensor is not read.
 - No battery level and no charging screen: the charge controller's protocol is not decoded yet.
 - The time zone is fixed to Kyiv.
 - The device password can be changed only by a factory reset and a new setup.

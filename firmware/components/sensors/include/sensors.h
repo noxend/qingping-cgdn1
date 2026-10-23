@@ -1,8 +1,6 @@
 // Environment sensors behind one call. A sampler task owns the I2C bus and keeps
 // the latest value of each sensor; any task reads it with sensor_get, which never
-// touches the bus and never blocks. Particulate matter and the battery are not
-// here yet: their pins are not recorded (docs/hardware.md), and the ids are added
-// when a source exists.
+// touches the bus and never blocks. The battery is not here yet.
 #pragma once
 
 #include <stdbool.h>
