@@ -13,9 +13,10 @@ None.
 ## Data
 
 The firmware reads the sensor once a second, as the stock firmware does, and shows the value the
-stock would: up to 61 as measured, above that the stock's correction, 999 at most. The first two
-readings after power on are skipped. The screen checks the value every second while it is shown;
-with no valid reading it shows `--`.
+stock would. A sensor whose frames carry version 0x80 is shown as measured. For any other: up to
+61 as measured, above that the stock's correction, 999 above 592, and both values 0 when either
+is 0. The first two readings after power on are skipped. The screen checks the value every
+second while it is shown; with no valid reading it shows `--`.
 
 ## LED
 

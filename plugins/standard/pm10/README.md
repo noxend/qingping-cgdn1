@@ -13,9 +13,11 @@ None.
 ## Data
 
 The firmware reads the sensor once a second, as the stock firmware does, and shows the value the
-stock would: as measured while PM2.5 is up to 61, above that the stock's correction, 999 at
-most. The first two readings after power on are skipped. The screen checks the value every second while it is shown;
-with no valid reading it shows `--`.
+stock would. A sensor whose frames carry version 0x80 is shown as measured. For any other: as
+measured while PM2.5 is up to 61, above that the stock's correction, 999 when PM2.5 is above 592,
+and both values 0 when either is 0. Past about 1840 µg/m³ the stock's curve turns negative and it
+shows 0; this screen shows 999. The first two readings after power on are skipped. The screen
+checks the value every second while it is shown; with no valid reading it shows `--`.
 
 ## LED
 
