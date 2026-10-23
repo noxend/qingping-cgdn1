@@ -32,7 +32,7 @@ export function PowerAction({ path, label, title, text, done, variant }) {
   };
 
   const trigger = (
-    <Button className="flex-1" variant={variant} onPress={() => setOpen(true)}>
+    <Button className="min-w-fit flex-1" variant={variant} onPress={() => setOpen(true)}>
       {label}
     </Button>
   );
