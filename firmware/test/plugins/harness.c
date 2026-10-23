@@ -193,30 +193,36 @@ static const wasm_heap_t HEAP = {
     .size = heap_size,
 };
 
+// Where the rows of a menu page start (menu.c): the menu itself, a page under a
+// title, the info page. Rows are 20 px apart, the bar starts 3 px above the text.
+#define MENU_TOP 7
+#define LIST_TOP 30
+#define INFO_TOP 26
+
 // The row the selection bar sits on: the first frame row that is lit almost
-// across (the bar), mapped onto the 20 px rows under the title; -1 without a bar.
-static int bar_row(void) {
+// across (the bar), mapped onto the 20 px rows from `top`; -1 without a bar.
+static int bar_row(int top) {
   for (int y = 0; y < GFX_H; y++) {
     int lit = 0;
     for (int x = 0; x < GFX_W; x++) {
       lit += host_frame[y][x] == 15;
     }
     if (lit > GFX_W - 10) {
-      return (y + 3 - 30) / 20;  // LIST_TOP 30, ROW_H 20, bar starts 3 px above the text
+      return (y + 3 - top) / 20;
     }
   }
   return -1;
 }
 
 // Draws the menu as it stands, writes the frame and applies the ink and margin
-// checks (the menu has no LED); `selected` is the row the bar must be on, -1 for
-// a page without a bar.
-static int menu_case(const char *name, const menu_info_t *info, int selected) {
+// checks (the menu has no LED); `selected` is the row the bar must be on, counted
+// from `top`, -1 for a page without a bar.
+static int menu_case(const char *name, const menu_info_t *info, int top, int selected) {
   menu_draw(info);
   write_pgm(name);
   bool in_margin = false;
   int ink = count_ink(&in_margin);
-  int bar = bar_row();
+  int bar = bar_row(top);
   bool ok = ink > 0 && !in_margin && bar == selected;
   fprintf(stderr, "%-18s %-12s ink %5d  bar %2d (want %2d)  %s\n", name, "menu", ink, bar, selected,
           ok ? "ok" : "FAIL");
@@ -224,9 +230,49 @@ static int menu_case(const char *name, const menu_info_t *info, int selected) {
 }
 
 // A swipe over the strip: the finger lands at `from` and lifts at `to`.
-static void menu_swipe(int from, int to) {
-  menu_finger(TOUCH_PHASE_DOWN, from);
-  menu_finger(TOUCH_PHASE_UP, to);
+// The touch task's clock; every touch starts a second after the last one.
+static uint32_t s_ms = 1000;
+
+// A touch that lands at `from` and lifts at `to` after `ms`.
+static menu_action_t menu_touch(int from, int to, uint32_t ms, bool online) {
+  s_ms += 1000;
+  menu_finger(TOUCH_PHASE_DOWN, from, s_ms, online);
+  menu_finger(TOUCH_PHASE_MOVE, to, s_ms + ms / 2, online);
+  return menu_finger(TOUCH_PHASE_UP, to, s_ms + ms, online);
+}
+
+static menu_action_t menu_swipe(int from, int to) {
+  return menu_touch(from, to, 300, false);
+}
+
+// A tap: the finger lifts a few counts from where it landed, as a real one does.
+static menu_action_t menu_tap(bool online) {
+  return menu_touch(128, 131, 150, online);
+}
+
+// Opens the menu (on Back, the last row) and swipes down to `row`, wrapping.
+static void open_at(int row) {
+  menu_open();
+  for (int i = 0; i < row + 1; i++) {
+    menu_swipe(200, 100);
+  }
+}
+
+static const char *const ACTION_NAMES[] = {
+    [MENU_NONE] = "none",
+    [MENU_REDRAW] = "redraw",
+    [MENU_POWER_OFF] = "power off",
+    [MENU_RESTART] = "restart",
+    [MENU_WIFI_SETUP] = "wifi setup",
+    [MENU_FACTORY_RESET] = "factory reset",
+    [MENU_CLOSE] = "close",
+};
+
+static int expect_action(const char *what, menu_action_t got, menu_action_t want) {
+  bool ok = got == want;
+  fprintf(stderr, "%-40s %-13s (want %-13s) %s\n", what, ACTION_NAMES[got], ACTION_NAMES[want],
+          ok ? "ok" : "FAIL");
+  return ok ? 0 : 1;
 }
 
 // The menu left alone: the setup page blanks the panel only after minutes, so a
@@ -244,10 +290,10 @@ static int idle_case(const char *what, bool has_network, bool blanks) {
   return !ok;
 }
 
-// Every page of the menu: the list with each row selected in turn, the info page
-// with sample values and with nothing known, the confirm page both ways, the
-// Wi-Fi page; the list is walked by swipes and the pages opened by holds, so the
-// state machine is exercised, not only the drawing.
+// Every page of the menu, drawn, and the state machine walked the way the device
+// drives it: a power button hold opens the menu, a swipe moves the selection, a tap
+// chooses, a power button click (menu_back) goes back a page and closes the menu
+// from the list.
 static int run_menu_cases(void) {
   menu_info_t info = {
       .version = "0.29.0",
@@ -266,88 +312,131 @@ static int run_menu_cases(void) {
       .ap_pass = "mwx7k2pq9tre",
   };
   int failed = 0;
+
+  // Open and navigate: six rows, the menu opens on Back, a swipe right goes down,
+  // left goes up, both wrap.
   menu_open();
-  failed += menu_case("menu_list_0", &info, 0);
-  menu_swipe(200, 100);  // right: next row
-  failed += menu_case("menu_list_1", &info, 1);
-  menu_swipe(200, 100);
-  failed += menu_case("menu_list_2", &info, 2);
-  menu_swipe(200, 100);
-  failed += menu_case("menu_list_3", &info, 3);
-  menu_swipe(100, 200);  // left: back up to row 2 ("Factory reset")
-  if (menu_hold(false) != MENU_NONE) {
-    fprintf(stderr, "confirm page expected after a hold on the reset row\n");
-    failed++;
+  failed += menu_case("menu_list_open", &info, MENU_TOP, 5);
+  failed += expect_action("swipe right from Back wraps", menu_swipe(200, 100), MENU_REDRAW);
+  failed += menu_case("menu_list_0", &info, MENU_TOP, 0);
+  const char *const list_names[] = {
+      "menu_list_1", "menu_list_2", "menu_list_3", "menu_list_4", "menu_list_5",
+  };
+  for (int row = 1; row <= 5; row++) {
+    failed +=
+        expect_action("swipe right moves the selection down", menu_swipe(200, 100), MENU_REDRAW);
+    failed += menu_case(list_names[row - 1], &info, MENU_TOP, row);
   }
-  failed += menu_case("menu_confirm_no", &info, 0);
   menu_swipe(200, 100);
-  failed += menu_case("menu_confirm_yes", &info, 1);
-  if (menu_hold(false) != MENU_FACTORY_RESET) {
-    fprintf(stderr, "a hold on \"Yes, reset\" must ask for the reset\n");
-    failed++;
-  }
-  menu_open();
-  menu_hold(false);  // row 0: info
-  failed += menu_case("menu_info", &info, -1);
-  failed += menu_case("menu_info_unknown", &unknown, -1);
-  menu_hold(false);  // back to the list
+  failed += menu_case("menu_list_wrap_down", &info, MENU_TOP, 0);
+  menu_swipe(100, 200);
+  failed += menu_case("menu_list_wrap_up", &info, MENU_TOP, 5);
+  failed += expect_action("tap on Back closes", menu_tap(false), MENU_CLOSE);
+
+  // The rows that act at once.
+  open_at(0);
+  failed += expect_action("tap on Power off", menu_tap(false), MENU_POWER_OFF);
   menu_swipe(200, 100);
-  if (menu_hold(false) != MENU_WIFI_SETUP) {
-    fprintf(stderr, "a hold on the Wi-Fi row must ask for the setup AP\n");
-    failed++;
-  }
-  failed += menu_case("menu_wifi", &offline, -1);
+  failed += expect_action("tap on Restart", menu_tap(false), MENU_RESTART);
+
+  // What is no tap: a rest as long as the strip's hold, still or drifting a little,
+  // and a release with no touch down. A touch just under the hold is still a tap.
+  open_at(4);
+  failed += expect_action("a strip hold then release does nothing",
+                          menu_touch(128, 128, 800, false), MENU_NONE);
+  failed +=
+      expect_action("a drifting rest does nothing", menu_touch(128, 150, 2000, false), MENU_NONE);
+  failed += expect_action("a release with no touch down",
+                          menu_finger(TOUCH_PHASE_UP, 50, s_ms + 5000, false), MENU_NONE);
+  failed += menu_case("menu_list_after_hold", &info, MENU_TOP, 4);
+  failed += expect_action("a 700 ms touch is a tap", menu_touch(128, 128, 700, false), MENU_REDRAW);
+  failed += expect_action("power click on the info page", menu_back(), MENU_REDRAW);
+  failed += expect_action("power click on the list closes", menu_back(), MENU_CLOSE);
+
+  // Factory reset: its confirm page, "No" and the click go back to the reset row.
+  open_at(3);
+  failed += expect_action("tap on Factory reset asks", menu_tap(false), MENU_REDRAW);
+  failed += menu_case("menu_confirm_no", &info, LIST_TOP, 0);
+  s_ms += 1000;
+  menu_finger(TOUCH_PHASE_DOWN, 128, s_ms, false);  // a finger rests through the click
+  failed += expect_action("power click on the confirm page", menu_back(), MENU_REDRAW);
+  failed += expect_action("that finger lifts as no tap",
+                          menu_finger(TOUCH_PHASE_UP, 128, s_ms + 100, false), MENU_NONE);
+  failed += menu_case("menu_list_back_reset", &info, MENU_TOP, 3);
+  menu_tap(false);
+  failed += expect_action("tap on No", menu_tap(false), MENU_REDRAW);
+  failed += menu_case("menu_list_after_no", &info, MENU_TOP, 3);
+  menu_tap(false);
+  menu_swipe(200, 100);
+  failed += menu_case("menu_confirm_yes", &info, LIST_TOP, 1);
+  failed += expect_action("tap on Yes, reset", menu_tap(false), MENU_FACTORY_RESET);
+
+  // Info: its Back row is selected; a tap or the click goes back to the list.
+  open_at(4);
+  failed += expect_action("tap on Info", menu_tap(false), MENU_REDRAW);
+  failed += menu_case("menu_info", &info, INFO_TOP, 4);
+  failed += menu_case("menu_info_unknown", &unknown, INFO_TOP, 4);
+  failed += expect_action("a swipe on the info page", menu_swipe(200, 100), MENU_NONE);
+  failed += expect_action("tap on Back of the info page", menu_tap(false), MENU_REDRAW);
+  failed += menu_case("menu_list_back_info", &info, MENU_TOP, 4);
+  menu_tap(false);
+  failed += expect_action("power click on the info page", menu_back(), MENU_REDRAW);
+  failed += menu_case("menu_list_back_info_2", &info, MENU_TOP, 4);
+
+  // Wi-Fi setup offline: the hotspot starts at once; a swipe shows it as text.
+  open_at(2);
+  failed += expect_action("tap on Wi-Fi setup offline", menu_tap(false), MENU_WIFI_SETUP);
+  failed += menu_case("menu_wifi", &offline, 0, -1);
   menu_swipe(200, 100);  // the hotspot as text
-  failed += menu_case("menu_wifi_text", &offline, -1);
+  failed += menu_case("menu_wifi_text", &offline, 0, -1);
   menu_swipe(100, 200);  // and back to the QR code
-  failed += menu_case("menu_wifi_qr", &offline, -1);
-  menu_hold(false);  // back to the list
-  if (menu_hold(true) != MENU_NONE) {
-    fprintf(stderr, "online, a hold on the Wi-Fi row must ask before the hotspot\n");
-    failed++;
-  }
-  failed += menu_case("menu_hotspot_no", &info, 0);
-  if (menu_hold(true) != MENU_NONE) {
-    fprintf(stderr, "\"No\" must not start the hotspot\n");
-    failed++;
-  }
-  menu_hold(true);
+  failed += menu_case("menu_wifi_qr", &offline, 0, -1);
+  failed += expect_action("tap on the Wi-Fi page goes back", menu_tap(false), MENU_REDRAW);
+  failed += menu_case("menu_list_back_wifi", &info, MENU_TOP, 2);
+
+  // Wi-Fi setup online: asks first; "No" and the click go back.
+  failed += expect_action("tap on Wi-Fi setup online", menu_tap(true), MENU_REDRAW);
+  failed += menu_case("menu_hotspot_no", &info, LIST_TOP, 0);
+  failed += expect_action("tap on No keeps the hotspot off", menu_tap(true), MENU_REDRAW);
+  failed += menu_case("menu_list_after_hotspot_no", &info, MENU_TOP, 2);
+  menu_tap(true);
   menu_swipe(200, 100);
-  failed += menu_case("menu_hotspot_yes", &info, 1);
-  if (menu_hold(true) != MENU_WIFI_SETUP) {
-    fprintf(stderr, "\"Yes\" must start the hotspot\n");
-    failed++;
-  }
-  failed += menu_case("menu_wifi_online", &info, -1);
+  failed += menu_case("menu_hotspot_yes", &info, LIST_TOP, 1);
+  failed += expect_action("tap on Yes starts the hotspot", menu_tap(true), MENU_WIFI_SETUP);
+  failed += menu_case("menu_wifi_online", &info, 0, -1);
+  failed += expect_action("power click on the Wi-Fi page", menu_back(), MENU_REDRAW);
+  failed += menu_case("menu_list_back_wifi_2", &info, MENU_TOP, 2);
+  failed += expect_action("second power click closes", menu_back(), MENU_CLOSE);
   menu_close();
+
+  // The setup page a device with no Wi-Fi shows by itself.
   menu_open_setup();
-  failed += menu_case("menu_setup_boot", &offline, -1);
+  failed += menu_case("menu_setup_boot", &offline, 0, -1);
   failed += idle_case("setup page", false, true);
   failed += idle_case("setup page online", true, false);
   menu_swipe(200, 100);  // the hotspot as text burns in the same
   failed += idle_case("setup page as text", false, true);
   menu_swipe(100, 200);
-  if (menu_hold(false) != MENU_NONE) {
-    fprintf(stderr, "a hold on the setup page goes to the list\n");
-    failed++;
-  }
-  failed += menu_case("menu_setup_list", &offline, 0);
+  failed += expect_action("tap on the setup page goes to the list", menu_tap(false), MENU_REDRAW);
+  failed += menu_case("menu_setup_list", &offline, MENU_TOP, 5);
   failed += idle_case("list with no network", false, false);
   menu_close();
+
   // The QR format's special characters, which the real hotspot never has.
   menu_info_t odd = {
       .ap_ssid = "a;b:c\\d",
       .ap_pass = "p,q\"r12345",
   };
   menu_open_setup();
-  failed += menu_case("menu_wifi_escaped", &odd, -1);
+  failed += menu_case("menu_wifi_escaped", &odd, 0, -1);
   menu_close();
+
+  // The address after a save: Back is its only row; a tap or the click closes.
   menu_open_joined();
-  failed += menu_case("menu_joined", &info, -1);
-  if (menu_hold(true) != MENU_CLOSE) {
-    fprintf(stderr, "a hold on the address page closes the menu\n");
-    failed++;
-  }
+  failed += menu_case("menu_joined", &info, LIST_TOP, 2);
+  failed += expect_action("tap on the address page closes", menu_tap(true), MENU_CLOSE);
+  menu_open_joined();
+  failed += expect_action("power click on the address page closes", menu_back(), MENU_CLOSE);
   menu_close();
   return failed;
 }

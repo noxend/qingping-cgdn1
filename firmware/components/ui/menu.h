@@ -1,5 +1,6 @@
-// The device menu, drawn by the core over the shown screen: a hold on the touch
-// strip opens it, a swipe moves the selection, a hold selects. Pure state and
+// The device menu, drawn by the core over the shown screen: a hold on the power
+// button opens it, a swipe on the touch strip moves the selection, a tap chooses, a
+// click on the button goes back a page and closes it from the list. Pure state and
 // drawing (through the SDK's gfx calls), so the host harness renders it too; the
 // screen manager owns the events, the timer and what an action does.
 #pragma once
@@ -20,12 +21,15 @@ typedef struct {
   char host[40];  // the device's mDNS name, "cgdn1.local"
 } menu_info_t;
 
-// What the screen manager has to do after a hold.
+// What the screen manager has to do after a finger or a click.
 typedef enum {
-  MENU_NONE,           // the menu handled it (page change, selection)
+  MENU_NONE,           // nothing changed
+  MENU_REDRAW,         // the page or the selection changed
+  MENU_POWER_OFF,      // "Power off" was chosen
+  MENU_RESTART,        // "Restart" was chosen
   MENU_WIFI_SETUP,     // bring the setup hotspot up; the menu shows its page
   MENU_FACTORY_RESET,  // the user confirmed the reset
-  MENU_CLOSE,          // "Back": close the menu and repaint the screen
+  MENU_CLOSE,          // close the menu and repaint the screen
 } menu_action_t;
 
 void menu_open(void);
@@ -44,11 +48,13 @@ bool menu_idle_blanks(bool has_network);
 // How long the menu waits for a touch before that.
 int64_t menu_idle_us(bool has_network);
 
-// The finger while the menu is open. True when the selection changed.
-bool menu_finger(touch_phase_t phase, int pos);
-// A hold while the menu is open. `online`: the device is on the home Wi-Fi, so the
-// hotspot is asked for before it starts.
-menu_action_t menu_hold(bool online);
+// The finger while the menu is open, `ms` a running clock: a swipe moves the
+// selection, a short touch that stays put is a tap and chooses the selected row; a
+// longer rest is a hold, which does nothing. `online`: the device is on the home
+// Wi-Fi, so the hotspot is asked for before it starts.
+menu_action_t menu_finger(touch_phase_t phase, int pos, uint32_t ms, bool online);
+// The power button's click while the menu is open: the page before, or close.
+menu_action_t menu_back(void);
 
 // Draws the current page into the frame (gfx_clear first).
 void menu_draw(const menu_info_t *info);

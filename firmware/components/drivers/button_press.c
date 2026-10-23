@@ -14,7 +14,7 @@ static button_event_t on_released(button_press_t *b, uint32_t now_ms) {
     return BUTTON_NONE;
   }
   b->down = false;
-  return b->long_sent ? BUTTON_NONE : BUTTON_CLICK;
+  return b->hold_sent ? BUTTON_NONE : BUTTON_CLICK;
 }
 
 button_event_t button_press_step(button_press_t *b, bool pressed, uint32_t now_ms) {
@@ -27,11 +27,17 @@ button_event_t button_press_step(button_press_t *b, bool pressed, uint32_t now_m
   }
   if (!b->down) {
     b->down = true;
+    b->hold_sent = false;
     b->long_sent = false;
     b->down_at = now_ms;
     return BUTTON_NONE;
   }
-  if (!b->long_sent && now_ms - b->down_at >= BUTTON_LONG_MS) {
+  uint32_t held_ms = now_ms - b->down_at;
+  if (!b->hold_sent && held_ms >= BUTTON_HOLD_MS) {
+    b->hold_sent = true;
+    return BUTTON_HOLD;
+  }
+  if (!b->long_sent && held_ms >= BUTTON_LONG_MS) {
     b->long_sent = true;
     return BUTTON_LONG;
   }
