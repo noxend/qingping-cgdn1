@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Plus } from "@gravity-ui/icons";
-import { Button, Modal } from "@heroui/react";
+import { Button, Link, Modal } from "@heroui/react";
 
 import { InfoList, InfoRow } from "./InfoRow";
 import { Notice } from "./Notice";
@@ -8,6 +8,8 @@ import { formatBytes } from "../lib/bytes";
 import { textIn } from "../lib/manifest";
 import { readModuleManifest } from "../lib/wasmManifest";
 import { useLang, useT } from "../i18n";
+
+const PLUGIN_GUIDE = "https://github.com/noxend/qingping-cgdn1/blob/main/plugins/README.md";
 
 // Nobody signed the module, so the hosts it may reach are shown before it is installed.
 function ChosenModule({ chosen, store }) {
@@ -152,7 +154,12 @@ export function UploadPlugin({ store }) {
               {chosen ? (
                 <ChosenModule chosen={chosen} store={store} />
               ) : (
-                <p className="text-sm leading-relaxed text-muted">{t("upload.text")}</p>
+                <p className="text-sm leading-relaxed text-muted">
+                  {t("upload.text")}{" "}
+                  <Link href={PLUGIN_GUIDE} target="_blank" rel="noopener noreferrer">
+                    {t("upload.guide")}
+                  </Link>
+                </p>
               )}
 
               {problem && (

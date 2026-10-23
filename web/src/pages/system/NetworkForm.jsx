@@ -32,9 +32,11 @@ function wifiPasswordOk(value) {
 function NetworkPicker({ label, nets, scanning, onScan, onOpen, value, onChange }) {
   const t = useT();
 
+  // A typed name that matches none of the networks found leaves the list empty too.
   const empty = () => (
     <EmptyState className="px-3 py-4 text-center">
-      {scanning ? t("system.scanning") : t("system.noNetsHint")}
+      {scanning && t("system.scanning")}
+      {!scanning && (nets.length ? t("system.noMatch") : t("system.noNetsHint"))}
     </EmptyState>
   );
 

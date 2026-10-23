@@ -21,7 +21,7 @@ export function ActionTip({ hint, children }) {
           <CircleInfo />
         </Button>
         <Popover.Content className="max-w-64">
-          <Popover.Dialog>
+          <Popover.Dialog aria-label={t("tip.what")}>
             <p className="text-sm">{hint}</p>
           </Popover.Dialog>
         </Popover.Content>

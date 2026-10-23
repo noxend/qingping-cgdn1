@@ -13,13 +13,13 @@ const MAC = /Mac|iPhone|iPad/.test(navigator.userAgent);
 // HeroUI's InputGroup "With keyboard shortcut": the shortcut from SignedIn.jsx while the
 // field is empty and the screen is wide enough to have a keyboard, a clear button once
 // there is a query.
-function SearchSuffix({ query, onSearch }) {
+function SearchSuffix({ query, onClear }) {
   const t = useT();
 
   if (query) {
     return (
       <InputGroup.Suffix className="pe-2">
-        <CloseButton aria-label={t("header.clear")} onPress={() => onSearch("")} />
+        <CloseButton aria-label={t("header.clear")} onPress={onClear} />
       </InputGroup.Suffix>
     );
   }
@@ -37,10 +37,26 @@ function SearchSuffix({ query, onSearch }) {
 export function Header({ query, onSearch, onMenu, searchRef, update }) {
   const t = useT();
 
+  // The clear button goes away with the query, so focus goes back to the field.
+  const clear = () => {
+    onSearch("");
+    searchRef.current?.focus();
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === "Escape" && query) {
+      clear();
+    }
+  };
+
+  const menuLabel = update
+    ? t("header.menu") + ". " + t("status.update", { version: update.version })
+    : t("header.menu");
+
   return (
     <header className={HEADER_CLASS}>
       <Badge.Anchor className="lg:hidden">
-        <Button isIconOnly variant="ghost" aria-label={t("header.menu")} onPress={onMenu}>
+        <Button isIconOnly variant="ghost" aria-label={menuLabel} onPress={onMenu}>
           <Bars />
         </Button>
         {update && <Badge color="danger" size="sm" />}
@@ -60,8 +76,9 @@ export function Header({ query, onSearch, onMenu, searchRef, update }) {
             ref={searchRef}
             className="w-full"
             placeholder={t("header.searchPlaceholder")}
+            onKeyDown={onKeyDown}
           />
-          <SearchSuffix query={query} onSearch={onSearch} />
+          <SearchSuffix query={query} onClear={clear} />
         </InputGroup>
       </TextField>
     </header>
