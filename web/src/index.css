@@ -1,9 +1,8 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 
-/* Text in the system face. Figures, counts and the name are in Source Code Pro, the
-   face of swithy.com, built into the page (latin and cyrillic, about 36 kB gzipped)
-   since the device is often offline. */
+/* Source Code Pro, the face of swithy.com, built into the page (latin and cyrillic,
+   about 36 kB gzipped) since the device is often offline. */
 @font-face {
   font-family: "Source Code Pro";
   font-style: normal;
@@ -27,8 +26,8 @@
 }
 
 @theme {
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
-  --font-mono: "Source Code Pro", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  --font-sans: "Source Code Pro", ui-monospace, Menlo, Consolas, monospace;
+  --font-mono: "Source Code Pro", ui-monospace, Menlo, Consolas, monospace;
 }
 
 /* The sidebar has its own surface, one step off the page in both themes. */

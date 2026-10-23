@@ -13,7 +13,7 @@ export function Banner({ kicker, title, children, actions, media }) {
       <div className={GRID_CLASS}>
         <div className="min-w-0">
           {kicker && <div className="text-sm text-muted">{kicker}</div>}
-          <h2 className="mt-2 text-[1.75rem] font-semibold tracking-[-0.02em] lg:text-[2rem]">
+          <h2 className="mt-2 text-[1.75rem] font-semibold tracking-tight lg:text-[2rem]">
             {title}
           </h2>
           <div className="mt-4">{children}</div>
