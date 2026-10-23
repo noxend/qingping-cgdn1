@@ -377,11 +377,12 @@ shorted to ground.
 crashing, the device goes back to the previous one by itself, and the System page says so.
 
 **The device cannot reach your Wi-Fi.** Its setup access point comes back whenever the home
-network is lost. Hold a finger on the touch strip, choose Wi-Fi setup, and the screen shows the
+network is lost. Hold the power button for a second, choose Wi-Fi setup, and the screen shows the
 QR code again.
 
-**You forgot the device password.** On the device: hold the touch strip, slide to Factory reset,
-hold, slide to "Yes, reset", hold. Settings, Wi-Fi and the password are erased; the firmware stays.
+**You forgot the device password.** On the device: hold the power button for a second, slide to
+Factory reset, tap, slide to "Yes, reset", tap. Settings, Wi-Fi and the password are erased; the
+firmware stays.
 Then set it up again from step 10.
 
 **You lost the signing key.** Generate a new one, build, and flash over the pads again (step 9).

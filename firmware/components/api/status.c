@@ -47,7 +47,8 @@
   "\"stack_free\":{%s},\"stall\":%s,"                                                              \
   "\"confirm_ms\":%d,\"cfg_ms\":%d,"                                                               \
   "\"img\":\"%s\",\"bootloops\":%lu,\"ui_timeouts\":%d,\"frames_reposted\":%d,\"ap\":%s,"          \
-  "\"off\":\"%s\",\"btn\":{\"armed\":%s,\"level\":%d,\"clicks\":%d,\"longs\":%d},\"crash\":"
+  "\"off\":\"%s\",\"btn\":{\"armed\":%s,\"level\":%d,\"clicks\":%d,\"holds\":%d,\"longs\":%d},"    \
+  "\"crash\":"
 
 // The least free stack each of the firmware's own tasks has had, in bytes, as
 // "name":bytes pairs; a task that is not running is left out.
@@ -184,7 +185,7 @@ esp_err_t api_status_get(httpd_req_t *req) {
             creds_last_hash_ms(), rollback_image_state(), rollback_bootloops(),
             screen_manager_ui_timeouts(), screen_manager_frames_reposted(),
             net_ap_is_up() ? "true" : "false", system_last_off(), btn.armed ? "true" : "false",
-            btn.level, btn.clicks, btn.longs);
+            btn.level, btn.clicks, btn.holds, btn.longs);
   if (n < (int) sizeof(buf) - 1) {
     n += crash_log_json(buf + n, (int) sizeof(buf) - n);  // bounded, returns at most cap - 1
   }

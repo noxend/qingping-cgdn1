@@ -1,6 +1,9 @@
 # Generated or vendored, and the lockfile npm rewrites on every install.
 package-lock.json
-firmware/
+firmware/**
+# The Node scripts of the host tests are ours.
+!firmware/**/
+!firmware/test/**/*.mjs
 # Build output; prettier only reads the root .gitignore, not these nested ones.
 web/dist/
 web/dist-hosted/

@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "esp_app_desc.h"
 #include "esp_log.h"
@@ -66,32 +67,59 @@ static bool gate_healthy(void) {
   return api_is_up() && (net_online() || net_ap_hit());
 }
 
-// The power button (drivers/button.h): a click blanks or wakes the panel and the
-// LED, a long press blanks them and powers the board off (system.h). On USB the
-// rail stays, so the board stays dark instead, as the stock firmware's charging
-// state does, until the next long press restarts it.
+// The power button (drivers/button.h): a click goes back in the device menu, and
+// outside it blanks or wakes the panel and the LED; a hold opens the menu; a long
+// press powers the board off (system.h) whatever the menu does. On USB the rail
+// stays, so the board stays dark instead, as the stock firmware's charging state
+// does, until the next hold restarts it.
 static volatile bool s_stayed_on;
+static StaticSemaphore_t s_menu_power_off_buf;
+static SemaphoreHandle_t s_menu_power_off;  // given by the menu, taken by the main task
 
 static void on_button_click(void) {
   if (!s_stayed_on) {
-    screen_manager_display_toggle();
+    screen_manager_button_click();
   }
 }
 
-// Until the image is confirmed a power cut rolls the update back, so the hold
-// waits for that (a minute at most after an update).
-static void on_button_long(void) {
+static void on_button_hold(void) {
   if (s_stayed_on) {
     system_power_on();
   }
-  if (strcmp(rollback_image_state(), "pending") == 0) {
-    ESP_LOGW(TAG, "long press ignored: the update is not confirmed yet");
+  screen_manager_button_hold();
+}
+
+// Until the image is confirmed a power cut rolls the update back, so power off
+// waits for that (a minute at most after an update).
+static bool update_pending(void) {
+  if (strcmp(rollback_image_state(), "pending") != 0) {
+    return false;
+  }
+  ESP_LOGW(TAG, "power off ignored: the update is not confirmed yet");
+  return true;
+}
+
+static void power_off(const char *reason) {
+  if (update_pending()) {
     return;
   }
   screen_manager_powering_off();
   vTaskDelay(pdMS_TO_TICKS(100));  // the UI loop draws it before the rail goes
-  s_stayed_on = !system_power_off("button", button_pressed);
+  s_stayed_on = !system_power_off(reason, button_pressed);
   screen_manager_display_off();
+}
+
+// A board that stayed on has restarted at the hold already.
+static void on_button_long(void) {
+  power_off("button");
+}
+
+// The menu's "Power off" comes on the UI loop, which has to draw "Powering off"
+// first, so the main task does it.
+static void on_menu_power_off(void) {
+  if (!update_pending()) {
+    xSemaphoreGive(s_menu_power_off);
+  }
 }
 
 void app_main(void) {
@@ -132,15 +160,20 @@ void app_main(void) {
   net_start();
   api_start();
   sensors_start();
+  s_menu_power_off = xSemaphoreCreateBinaryStatic(&s_menu_power_off_buf);
   screen_manager_set_version(FW_VERSION);
+  screen_manager_set_power_off(on_menu_power_off);
   screen_manager_start();
-  button_start(on_button_click, on_button_long);  // after the loop and the settings
+  button_start(on_button_click, on_button_hold, on_button_long);  // after the loop and the settings
 
   stall_watch_start();
   rollback_settle(pending_verify, gate_healthy);
-  // Confirmed image: keep the server alive if it ever failed to come up.
+  // Confirmed image: keep the server alive if it ever failed to come up, and power
+  // off when the menu asks.
   while (true) {
-    vTaskDelay(pdMS_TO_TICKS(10000));
+    if (xSemaphoreTake(s_menu_power_off, pdMS_TO_TICKS(10000))) {
+      power_off("menu");
+    }
     api_start();
   }
 }
