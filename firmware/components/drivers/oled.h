@@ -1,5 +1,5 @@
-// SPI OLED of the CGDN1, lcd_id == 1 panel: 4 bit grayscale, column addressed.
-// Pins, init stream and frame format are in docs/hardware.md (Display).
+// SPI OLED of the CGDN1. Pins, init streams and frame formats are in
+// docs/hardware.md (Display).
 #pragma once
 
 #include <stddef.h>
@@ -11,7 +11,17 @@
 #define OLED_W 160
 #define OLED_H 128
 
-esp_err_t oled_init(void);
+// The two panels the stock firmware drives, picked by the factory record's lcd_id:
+// A for lcd_id 1 (4 bit grey, column addressed, 8 MHz), B for any other (1 bit,
+// page addressed, 2 MHz). On panel B every level above 0 is fully lit.
+typedef enum {
+  OLED_PANEL_A,
+  OLED_PANEL_B,
+} oled_panel_t;
+
+esp_err_t oled_init(oled_panel_t panel);
+// The panel oled_init was given.
+oled_panel_t oled_panel(void);
 void oled_clear(void);
 // level 0 (off) .. 15 (full).
 void oled_pixel(int x, int y, uint8_t level);

@@ -129,7 +129,10 @@ esptool.py --chip esp32 --port /dev/cu.usbserial-0001 --baud 115200 --before no_
 Back from stock to the custom firmware over the pads, done the same day without a full rebuild:
 write a saved copy of this firmware's first 64 KB (bootloader, partition table, nvs, otadata,
 phy_init) at 0x0, the app at 0x10000 and `nvs_cfg` at 0x3D0000, then erase otadata (0xd000, 0x2000)
-so the bootloader starts ota_0. A normal `idf.py flash` is the plain way.
+so the bootloader starts ota_0. A normal `idf.py flash` is the plain way. Writing the saved
+`nvs_cfg` replaces the factory record at 0x3D2000 (Display, below) before this firmware can keep
+it; unless the saved `nvs` already holds the copy, the unit then drives panel A whatever its
+`lcd_id`. `idf.py flash` leaves that flash alone.
 
 ## Display
 
@@ -149,8 +152,9 @@ Bus: HSPI (SPI2), DMA channel 1, SPI mode 0, MSB first, MISO unused.
 | CS | 15 (held low, single device) |
 | RST | 22 (active low) |
 
-Clock is 8 MHz when the runtime `lcd_id` is 1, otherwise 2 MHz. `lcd_id` is read from the panel at
-boot and logged as `lcd id %d`.
+Clock is 8 MHz when `lcd_id` is 1 (panel A), otherwise 2 MHz (panel B). `lcd_id` is one byte of
+the factory record (below), read from flash at 0x3D205D at boot and logged as `lcd id %d`. The
+maintainer's unit has panel A; no unit with panel B has been seen.
 
 Power-on: configure GPIO 2, 15, 22 as outputs; DC=0, CS=0, RST=0; then an active-low reset pulse on
 RST (low about 2 ms, high, low about 5 ms, high about 1 ms); then set up SPI and send the init table.
@@ -187,10 +191,30 @@ Driving it so that it does not whine (found on hardware, matches the stock `oled
   `GET /gpio?pin=13|18&v=0|1` are token gated research probes. They are not in the firmware: a
   test build adds them from the private `cgdn1-dev` repository (firmware/README.md, "Test builds").
 
-Frame: the GRAM is 20 pages of 128 bytes = 2560 bytes = 160 x 128 / 8, packed vertically (one byte
-is 8 stacked pixels, SSD1306 style), native layout 128 columns by 160 rows. Each page is written as
-a 4-byte command with DC=0, `B0 <page> 00 11` (set page = `page`, column start = 0x10 = 16), then
-128 data bytes with DC=1, for pages 0 to 19.
+Frame: the stock firmware draws into one buffer of 20 pages of 128 bytes = 2560 bytes =
+160 x 128 / 8, packed vertically (one byte is 8 stacked pixels, bit 0 on top, SSD1306 style),
+native layout 128 columns by 160 rows, and streams it by panel (`oled_drive_refresh_gram`):
+
+- Panel A, 4 bit grey: `00 10` (column 0), then one column of 80 bytes per buffer column, two rows
+  per byte (low nibble = even row), a lit pixel as 0xF. Buffer column 127 goes first and column 0 is
+  never sent.
+- Panel B, 1 bit: per page a 4-byte command with DC=0, `B0 <page> 00 11` (set page = `page`, column
+  start = 0x10 = 16), then the page's 128 bytes with DC=1, for pages 0 to 19.
+
+After panel A's init table the stock clears its RAM with `00 10` and 10240 zero bytes; panel B's
+table skips that call. Both then get a frame before `AF`. The custom firmware composes panel A's
+columns (`oled_compose.c`) and, on panel B, packs them into those pages, any grey level above 0
+lit.
+
+Factory record, flash 0x3D2000 in the stock `test` partition, read from the maintainer's dump:
+`5A`, the unit's MAC (6 bytes), `A5`, erased bytes, at 0x4A the serial's length (`10`) and the
+serial (`S00115100DB006CA`, NUL after it), at 0x5C `FF`, at 0x5D `lcd_id` (`01`). The stock checks
+only the `5A` and picks panel A only for `lcd_id` 1, so a unit restored to stock without its record
+gets panel B's init. The custom firmware's `nvs_cfg` reuses that flash: at boot, before it mounts
+`nvs_cfg`, it reads the record when it still has this shape and keeps the 0x5E bytes on the default
+`nvs` partition (namespace `factory`, key `record`), which a factory reset leaves alone. `GET
+/status` shows `serial`, `lcd_id` and the `panel` driven. A unit that ran an earlier version had
+its record overwritten and gets panel A.
 
 ## I2C buses
 
