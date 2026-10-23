@@ -7,7 +7,7 @@
   "scripts": {
     "build": "npm run build -w cgdn1-web",
     "dev": "npm run dev -w cgdn1-web",
-    "lint": "npm run lint -w cgdn1-web",
+    "lint": "npm run lint -w cgdn1-web && eslint tools firmware/test",
     "format": "npm run format:js && npm run format:py && npm run format:c && npm run format:sh",
     "format:check": "npm run format:check:js && npm run format:check:py && npm run format:check:c && npm run format:check:sh",
     "format:js": "prettier --write .",
@@ -22,9 +22,12 @@
     "lint:sh": "git ls-files -z '*.sh' | xargs -0 uvx --from shellcheck-py==0.11.0.1 shellcheck"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
     "prettier": "^3.9.10"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=24.2"
   }
 }
