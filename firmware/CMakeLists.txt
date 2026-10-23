@@ -12,7 +12,7 @@ set(WAMR_BUILD_ALLOC_WITH_USAGE 1 CACHE STRING "WAMR linear memory through the a
 idf_build_set_property(COMPILE_DEFINITIONS "CJSON_NESTING_LIMIT=8" APPEND)
 # The one build that moves a device from CONFIG_PASS in secrets.h to the hash in
 # nvs_cfg (system/creds.c). It holds that password, so it is a DEV build, which
-# publish_fw.py refuses; build it in its own directory:
+# publish_fw.mjs refuses; build it in its own directory:
 # idf.py -B build-migrate -DDEV_BUILD=1 -DCGDN1_MIGRATE=1 build
 if(CGDN1_MIGRATE)
   if(NOT DEV_BUILD)

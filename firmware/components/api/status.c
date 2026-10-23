@@ -130,8 +130,9 @@ static void diag_report(char *buf, int *n, int cap, const net_stats_t *ns) {
             system_last_off());
   button_counts_t btn;
   button_counts(&btn);
-  bufappend(buf, n, cap, ",\"btn\":{\"armed\":%s,\"level\":%d,\"clicks\":%d,\"longs\":%d}",
-            btn.armed ? "true" : "false", btn.level, btn.clicks, btn.longs);
+  bufappend(buf, n, cap, ",\"btn\":{\"armed\":%s,\"level\":%d,\"clicks\":%d,\"holds\":%d",
+            btn.armed ? "true" : "false", btn.level, btn.clicks, btn.holds);
+  bufappend(buf, n, cap, ",\"longs\":%d}", btn.longs);
 }
 
 esp_err_t api_status_get(httpd_req_t *req) {
