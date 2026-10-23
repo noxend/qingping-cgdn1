@@ -49,34 +49,87 @@ held to GND and G pulsed to GND, D reads 3.3 V: the ROM bootloader owns UART0 in
 | D, TXD0 | RXI |
 | C, RXD0 | TXO |
 | B, GND | GND |
-| A, GPIO0 | BOOT button to GND |
-| G, EN | RESET button to GND |
+| A, GPIO0 | not connected; touched to GND by hand |
+| G, EN | not connected; touched to GND by hand (optional) |
 
-The adapter's 3V3 and +5V stay unconnected; the device runs from its own USB-C or battery.
+The adapter's 3V3 and +5V stay unconnected; the device runs from its own USB-C or battery. There
+are no buttons: "touched to GND" means pressing the wire's end against the module shield. The
+labels on the wiring picture still say BOOT and RESET for those two.
 
 Soldering: pad B (GND) sits on the ground plane, which pulls the heat away, so solder does not wet
 it at the temperature that works on the other pads. Add flux, raise the iron by 20 to 30 °C (about
 340 to 350 °C for leaded solder) and hold it a little longer. The signal pads A, C, D and G tin
-easily at 320 °C. The board stays in the housing, and the pads are close to its white plastic edge:
-keep the iron shaft clear of it, it melts on contact.
+easily at 320 °C. With the board in the housing the pads are close to its white plastic edge, which
+melts on contact with the iron shaft.
 
-Wires soldered to the pads (continuity to each pin and no shorts between them checked):
+Wires on the pads, as resoldered on 2026-10-23 (four wires, none on G):
 
-| Wire | Pad | Signal |
-|---|---|---|
-| black | B | GND |
-| white | D | TXD0 |
-| green | C | RXD0 |
-| red, labelled IO0 | A | GPIO0 |
-| red, labelled EN | G | EN |
+| Wire | Pad | Signal | Adapter |
+|---|---|---|---|
+| green | A | GPIO0 | none |
+| black | B | GND | GND |
+| white | C | RXD0 | TXO |
+| red | D | TXD0 | RXI |
 
-Both red wires carry signals, not power: never connect either to the adapter's 3V3 or +5V.
-Swapping the two only breaks the boot sequence; the labels tell them apart.
-
-Download mode: hold BOOT, press and release RESET, release BOOT.
+The photos in install.md show the first wiring: black B, white D, green C, red A labelled IO0, red
+G labelled EN.
 
 The CP2102 board in use breaks out DTR but not RTS, so esptool cannot reset the chip into the
-bootloader by itself; the two buttons do it by hand.
+bootloader by itself. Download mode by hand, either way:
+
+- With an EN wire: hold A to GND, tap G to GND, release A.
+- Without one: hold A to GND, power the device off and on with the back power button, release A.
+  Done on the stock firmware; the ROM printed `rst:0x1 (POWERON_RESET)` and
+  `boot:0x3 (DOWNLOAD_BOOT)`. Whether USB-C was plugged in during that test is not recorded; the
+  stock long click on USB goes to the charging screen (see Power button below). On this firmware
+  with USB power the button does not cut the power, so that case is untested, as is the button
+  right after a flash, when the ROM loader runs.
+
+Loose wires: with the wires left soldered and dangling inside the closed case, the device, on the
+stock firmware too, stopped responding and restarted; the ROM printed
+`rst:0x10 (RTCWDT_RTC_RESET)`. After the EN wire was removed and the case reassembled it ran
+normally. Not settled whether a contact during reassembly or the loose EN wire caused it.
+
+## Stock flash
+
+Partition table of the stock image, read from the 4 MB dump:
+
+| Name | Type | Offset | Size |
+|---|---|---|---|
+| nvs | data, nvs | 0x9000 | 0x4000 |
+| otadata | data, ota | 0xd000 | 0x2000 |
+| phy_init | data, phy | 0xf000 | 0x1000 |
+| miio_fw1 | app, ota_0 | 0x10000 | 0x1e0000 |
+| miio_fw2 | app, ota_1 | 0x1f0000 | 0x1e0000 |
+| test | app | 0x3d0000 | 0x23000 |
+| factory_nvs | data, nvs | 0x3f3000 | 0x4000 |
+| nvs_keys | data, nvs_keys | 0x3f7000 | 0x1000 |
+| minvs | data | 0x3f8000 | 0x4000 |
+
+Per-device data, key names read with ESP-IDF's `nvs_tool.py` (values not printed):
+
+- `factory_nvs`, namespace `hap_setup`: `setup_id`, `setup_salt`, `setup_verifier`.
+- `nvs`: `setup_code`, `setup_payload`, `acc_id`, `ltpka`, `ltska` (HomeKit), the namespace
+  `cleargrass` (Qingping), and the Wi-Fi driver's saved network.
+
+The case's side sticker carries the HomeKit setup QR and the eight-digit setup code under a house
+icon. The custom firmware's `nvs_cfg` (0x3D0000, 0x30000) covers `test`, `factory_nvs`,
+`nvs_keys` and `minvs`; its init may erase them, and a factory reset does.
+
+Reading the dump: `read_flash 0 0x400000` at 115200 baud, about 379 s. 921600 broke off halfway and
+left the stub at that speed; 460800 failed with "Invalid head of packet" on these wires.
+
+Restore, done 2026-10-23: writing the whole dump back at 0 restored the stock firmware, which booted
+and ran. About 218 s at 115200, "Hash of data verified":
+
+```bash
+esptool.py --chip esp32 --port /dev/cu.usbserial-0001 --baud 115200 --before no_reset --after no_reset write_flash 0 cgdn1-stock-full-1.bin
+```
+
+Back from stock to the custom firmware over the pads, done the same day without a full rebuild:
+write a saved copy of this firmware's first 64 KB (bootloader, partition table, nvs, otadata,
+phy_init) at 0x0, the app at 0x10000 and `nvs_cfg` at 0x3D0000, then erase otadata (0xd000, 0x2000)
+so the bootloader starts ota_0. A normal `idf.py flash` is the plain way.
 
 ## Display
 
@@ -245,8 +298,8 @@ the display is actually used the hum returns; the stock init configures the pane
 The step-by-step guide with photos is [install.md](install.md#3-open-the-case).
 
 Follows the [iFixit guide](https://www.ifixit.com/Guide/Disassembling+Qingping+Air+Monitor+Lite+CGDN1/167734).
-The display flex cable is on the right edge seen from the front: open the display to the right like a
-book. The front glass and the display panel are glued; the panel also in the middle. On our device
+The display flex cable is on the right edge seen from the front: open the display to the right like
+a book. The front glass and the display panel are glued; the panel also in the middle. On our device
 the glass was pried up with thin strips of packaging plastic, the panel lifted with a rigid handle
 stuck on with double-sided tape, and the glue left on the panel needed an adhesive remover spray.
 The ESP32 module is reachable once the display and the plate under it (two screws) are off, without

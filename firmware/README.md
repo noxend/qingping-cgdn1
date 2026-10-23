@@ -238,7 +238,7 @@ local network's traffic can take a session; the signature is what keeps a foreig
 7. Keep the UART pads reachable (a small hole or a JST pigtail) as the last resort. Recovery of last
    resort is always a full reflash of the 4 MB backup over UART.
 
-## On the device: menu, power button, night profile
+## On the device: menu, power button, night profile, temperature
 
 - **Touch strip**: a slide moves the carousel to the next screen; a hold opens the menu. In the
   menu a slide to the right moves down the list, to the left up, and a hold selects. Rows: Info
@@ -255,6 +255,13 @@ local network's traffic can take a session; the signature is what keeps a foreig
   and `POST /config` (off by default, 22:00 to 08:00, screen 30 %, indicator 20 %). Inside the
   window the panel's level table is scaled down or the panel goes dark, and the LED is scaled.
   The Display page of the web interface edits it.
+- **Temperature correction**: an offset of -3.0 to +3.0 °C in steps of 0.1 (`temp_offset.c`, host
+  test `test/temp_offset/run.sh`), one record in the core settings, read and written as
+  `temp_offset` in `GET /config` and `POST /config` (0 by default). `sensor_get` adds it to every
+  temperature, so the panel, the plugins and `GET /sensors` all show the corrected value. It also
+  recomputes every humidity for the corrected temperature at the same water vapour content
+  (`temp_offset_humidity`, Sensirion's Physics of Humidity application note, equation 10), capped
+  at 100 %RH. The System page of the web interface edits it.
 - **Burn-in protection**: a 2 px pixel orbit applied when the frame is flushed, one step every
   60 s, always on.
 - **Time**: SNTP from `pool.ntp.org`, the zone fixed to Kyiv (`net.c`).

@@ -1,5 +1,6 @@
 #include "sensors.h"
 
+#include <stdatomic.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -8,7 +9,9 @@
 #include "esp_timer.h"
 #include "scd4x.h"
 #include "sensor_bus.h"
+#include "settings.h"
 #include "sht4x.h"
+#include "temp_offset.h"
 
 static const char *TAG = "sensors";
 
@@ -18,6 +21,7 @@ static const char *TAG = "sensors";
 #define CO2_QUIET_TICKS 20  // no CO2 value for this long: restart the SCD40
 #define BUS_RESET_TICKS 30  // nothing on the bus answered for this long: reset it
 #define FIRST_READ_WAIT_MS 500
+#define TEMP_OFFSET_KEY "temp_offset"
 
 // Older than this and a reading is reported invalid: a few sampling periods
 // (the SCD40 delivers a value every 5 s per Sensirion's periodic mode).
@@ -36,6 +40,7 @@ typedef struct {
 static slot_t s_slots[SENSOR_COUNT];
 static SemaphoreHandle_t s_first_read;  // given once the sampler has tried the SHT4x
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
+static atomic_int s_temp_offset;  // tenths of a degree
 
 static void store(sensor_id_t id, float value) {
   int64_t now = esp_timer_get_time();
@@ -52,17 +57,52 @@ bool sensor_get(sensor_id_t id, sensor_reading_t *out) {
     return false;
   }
   slot_t slot;
+  slot_t temp;  // the SHT4x reads both, so this is the temperature the humidity was measured at
   taskENTER_CRITICAL(&s_mux);
   slot = s_slots[id];
+  temp = s_slots[SENSOR_TEMP];
   taskEXIT_CRITICAL(&s_mux);
   int64_t age_ms = slot.have ? (esp_timer_get_time() - slot.at_us) / 1000 : 0;
   if (age_ms > UINT32_MAX) {
     age_ms = UINT32_MAX;  // a long-dead sensor must not wrap back to "fresh"
   }
+  int16_t offset = (int16_t) atomic_load(&s_temp_offset);
   out->value = slot.value;
+  if (id == SENSOR_TEMP && slot.have) {
+    out->value = temp_offset_apply(slot.value, offset);
+  }
+  if (id == SENSOR_HUM && slot.have && temp.have) {
+    out->value = temp_offset_humidity(slot.value, temp.value, offset);
+  }
   out->age_ms = (uint32_t) age_ms;
   out->valid = slot.have && out->age_ms <= MAX_AGE_MS[id];
   return out->valid;
+}
+
+int16_t sensors_temp_offset(void) {
+  return (int16_t) atomic_load(&s_temp_offset);
+}
+
+bool sensors_set_temp_offset(int16_t tenths) {
+  if (!temp_offset_ok(tenths)) {
+    return false;
+  }
+  esp_err_t e = settings_blob_set(TEMP_OFFSET_KEY, &tenths, sizeof(tenths));
+  if (e != ESP_OK) {
+    ESP_LOGE(TAG, "temperature offset store: %s", esp_err_to_name(e));
+    return false;
+  }
+  atomic_store(&s_temp_offset, tenths);
+  return true;
+}
+
+// The stored offset, or 0 when there is none or it is out of range.
+static void load_temp_offset(void) {
+  int16_t tenths = 0;
+  size_t len = sizeof(tenths);
+  esp_err_t e = settings_blob_get(TEMP_OFFSET_KEY, &tenths, &len);
+  bool usable = e == ESP_OK && len == sizeof(tenths) && temp_offset_ok(tenths);
+  atomic_store(&s_temp_offset, usable ? tenths : 0);
 }
 
 static bool read_sht(void) {
@@ -144,6 +184,7 @@ static void sampler(void *arg) {
 }
 
 void sensors_start(void) {
+  load_temp_offset();
   s_first_read = xSemaphoreCreateBinary();
   if (xTaskCreate(sampler, "sensors", 4096, NULL, 2, NULL) != pdPASS) {
     ESP_LOGE(TAG, "sampler task create failed");

@@ -17,3 +17,13 @@ void sensors_start(void);
 // Copies the latest reading of `id` into out and returns out->valid. A reading
 // older than a few sampling periods is reported invalid instead of stale.
 bool sensor_get(sensor_id_t id, sensor_reading_t *out);
+
+// The temperature calibration in tenths of a degree (temp_offset.h), kept in the core
+// settings. sensor_get adds it to every temperature and recomputes the humidity for the
+// corrected temperature, so the panel, the plugins and /sensors all show corrected
+// values. 0 until set.
+int16_t sensors_temp_offset(void);
+
+// Stores the offset and applies it from the next sensor_get. False when it is out of
+// range or could not be stored. Any task.
+bool sensors_set_temp_offset(int16_t tenths);
