@@ -11,16 +11,20 @@
 | `tools/` | `publish_fw.py` and `publish_web.py`, which sign and publish releases |
 | `docs/` | these guides, [hardware.md](hardware.md), release notes, images |
 
-## Formatting
+## Formatting and lint
 
-One root `npm install` sets up Prettier, which covers `web` and the root config files. Python and C
-go through `uvx`, so [uv](https://docs.astral.sh/uv/) has to be installed; ruff and clang-format
-are pinned in `package.json`.
+One root `npm install` sets up Prettier, which covers `web` and the root config files. Python, C and
+shell go through `uvx`, so [uv](https://docs.astral.sh/uv/) has to be installed; ruff,
+clang-format, shfmt and shellcheck are pinned in `package.json`.
 
 ```bash
-npm run format          # rewrite JS, Python and C
+npm run format          # rewrite JS, Python, C and shell
 npm run format:check    # what CI runs
+npm run lint            # eslint over web
+npm run lint:py         # ruff check
+npm run lint:sh         # shellcheck
 ```
 
-Settings live in `.editorconfig`, `.prettierrc`, `pyproject.toml` and `.clang-format`. Markdown and
-the vendored u8g2 are left alone.
+Settings live in `.editorconfig` (shfmt reads it too), `.prettierrc`, `pyproject.toml` and
+`.clang-format`. Markdown and the vendored u8g2 are left alone. A program longer than a line goes in
+its own file next to the script that runs it, never in a heredoc, where none of these checks see it.
