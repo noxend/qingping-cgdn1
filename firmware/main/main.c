@@ -13,8 +13,6 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/uart.h"
-#include "driver/uart_vfs.h"
 #include "esp_app_desc.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -49,21 +47,12 @@ _Static_assert(!DEV_OPEN_DIAGNOSTICS && !DEV_EARLY_CONFIRM && !DEV_FW_STAND,
 
 static const char *TAG = "cgdn1";
 
-#define CONSOLE_RX_BUF 256  // the driver wants more than the 128-byte FIFO; nothing reads it
-
-// The console through the UART driver, with no TX buffer as IDF's own console REPL: a
-// writer sleeps while the FIFO is full. The default console spins until the FIFO has
-// room, so a flood of log lines kept the idle task off CPU 0 until the task watchdog
-// reset the board. A release build logs warnings and errors, and the info lines of the
-// core's own tag (the version at boot, Wi-Fi, OTA).
+// The console stays IDF's default, whose writes spin until the UART FIFO has room: a
+// flood of log lines starves the idle task (touch_bus keeps the strip's quiet). The
+// UART driver in its place was in 1.0.0-rc16, which froze or reset at Wi-Fi start with
+// no adapter on the RX pin. A release build logs warnings and errors, and the info lines
+// of the core's own tag (the version at boot, Wi-Fi, OTA).
 static void console_start(void) {
-  int port = CONFIG_ESP_CONSOLE_UART_NUM;
-  esp_err_t e = uart_driver_install(port, CONSOLE_RX_BUF, 0, 0, NULL, 0);
-  if (e == ESP_OK) {
-    uart_vfs_dev_use_driver(port);
-  } else {
-    ESP_LOGE(TAG, "console driver: %s; the console spins when full", esp_err_to_name(e));
-  }
 #ifndef DEV_BUILD
   esp_log_level_set("*", ESP_LOG_WARN);
   esp_log_level_set(TAG, ESP_LOG_INFO);
