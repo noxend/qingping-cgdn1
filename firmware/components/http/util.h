@@ -24,6 +24,8 @@ bool recv_exact(httpd_req_t *req, char *buf, int len);
 
 // Answers the request with an HTTP error and a JSON body {"error":"<msg>"}, so a
 // client can always parse an answer (part of the API contract, see API_VERSION).
+// Returns ESP_FAIL, so a handler ends with `return http_error(...)` and the server
+// closes the connection: a body the handler did not read cannot become the next request.
 esp_err_t http_error(httpd_req_t *req, httpd_err_code_t code, const char *msg);
 
 // Registers a handler behind the Host check (auth_host_ok) and sign-in
