@@ -38,6 +38,7 @@ PLUGINS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plugin
 sys.path.insert(0, os.path.join(PLUGINS, "sdk"))
 sys.dont_write_bytecode = True  # no __pycache__ beside the SDK's script
 from embed_manifest import HOSTS_MAX, Pairs, as_dicts, json_problems, problems_of  # noqa: E402
+from wasm_section import custom_section  # noqa: E402
 
 PASSWORD = "test"
 SDK = 2
@@ -47,40 +48,9 @@ PSRAM_TOTAL = 4 * 1024 * 1024
 STANDARD = ["alerts", "clock", "humidity", "temperature", "co2"]
 
 
-def leb(code, at):
-    value = shift = 0
-    while at < len(code):
-        b = code[at]
-        at += 1
-        value |= (b & 0x7F) << shift
-        shift += 7
-        if not b & 0x80:
-            return value, at
-    return None, at
-
-
-def section(code):
-    """The bytes of the module's "cgdn1.plugin" custom section, or None."""
-    if code[:8] != b"\0asm\x01\0\0\0":
-        return None
-    at = 8
-    while at < len(code):
-        sid = code[at]
-        size, body = leb(code, at + 1)
-        if size is None or body + size > len(code):
-            return None
-        at = body + size
-        if sid != 0:
-            continue
-        n, name = leb(code, body)
-        if n is not None and code[name : name + n] == b"cgdn1.plugin":
-            return code[name + n : at]
-    return None
-
-
 def refusal(code):
     """Why the device would refuse this upload, as its 400 body, or None."""
-    raw = section(code)
+    raw = custom_section(code)
     if raw is None:
         return {"error": "section"}
     try:
@@ -117,7 +87,7 @@ def standard_modules():
             build = [os.path.join(PLUGINS, "build.sh"), src, path]
             subprocess.run(build, check=True, stdout=subprocess.DEVNULL)
             code = open(path, "rb").read()
-            out[pid] = (code, json.loads(section(code)))
+            out[pid] = (code, json.loads(custom_section(code)))
     return out
 
 
@@ -265,7 +235,7 @@ class Device:
         why = refusal(code)
         if why:
             return 400, why
-        return self.queue(json.loads(section(code)), len(code))
+        return self.queue(json.loads(custom_section(code)), len(code))
 
     def take_install(self, pid):
         """POST /plugins/install {"id"}: a standard plugin from the image."""

@@ -12,11 +12,10 @@
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 FW=$(cd "$HERE/../.." && pwd)
-IDF=${IDF_PATH:-$HOME/Library/Caches/esphome/idf/frameworks/5.5.5}
-C=$IDF/components
+# shellcheck source=../lib.sh
+source "$HERE/../lib.sh"
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
-CACHE=${TMPDIR:-/tmp}/cgdn1-host-mbedtls
 
 IMAGE=${1:-}
 if [[ -z "$IMAGE" ]]; then
@@ -29,14 +28,7 @@ if [[ -z "$IMAGE" || ! -f "$IMAGE" ]]; then
   exit 1
 fi
 
-# IDF's mbedtls with its default config, built once per machine (shared with web_manifest).
-if [[ ! -f $CACHE/done ]]; then
-  mkdir -p "$CACHE"
-  for f in "$C"/mbedtls/mbedtls/library/*.c; do
-    cc -c -O1 -w -I"$C/mbedtls/mbedtls/include" -I"$C/mbedtls/mbedtls/library" "$f" -o "$CACHE/$(basename "$f" .c).o"
-  done
-  touch "$CACHE/done"
-fi
+build_mbedtls
 
 cp -R "$HERE/../web_manifest/stub" "$WORK/stub"
 cp "$FW"/components/net/{fw_manifest,signed_envelope}.{c,h} "$FW/components/net/web_manifest.h" "$WORK/stub/"
@@ -68,5 +60,6 @@ release("quote.json", notes='a "quoted" note')
 release("same.json", version="0.27.5", seq=seq + 1)
 release("older.json", version="0.27.9", seq=seq - 1000)
 PY
-cc -O1 -w -Istub -I"$C/mbedtls/mbedtls/include" -I"$C/json/cJSON" harness.c stub/signed_envelope.c "$C/json/cJSON/cJSON.c" "$CACHE"/*.o -o harness
+cc -O1 -w -Istub -I"$C/mbedtls/mbedtls/include" -I"$C/json/cJSON" harness.c \
+  stub/signed_envelope.c "$C/json/cJSON/cJSON.c" "$MBEDTLS_CACHE"/*.o -o harness
 ./harness
