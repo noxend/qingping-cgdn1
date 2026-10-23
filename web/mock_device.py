@@ -123,8 +123,10 @@ def standard_modules():
 
 def magnus_ratio(measured, corrected):
     """How relative humidity scales when the temperature is corrected, as temp_offset.c does."""
+
     def magnus(t):
         return 17.62 * t / (243.12 + t)
+
     return math.exp(magnus(measured) - magnus(corrected))
 
 
