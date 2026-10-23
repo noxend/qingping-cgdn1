@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { refused } from "../lib/answer";
-import { usePlugins } from "../lib/api";
+import { request, TIMEOUT_MS, usePlugins } from "../lib/api";
 import { notify } from "../lib/notify";
 import { useLang } from "../i18n";
 
@@ -30,14 +30,14 @@ const OWNER = {
   load: "store.owner.broken",
 };
 
-function request({ kind, id, bytes }) {
+function send({ kind, id, bytes }) {
   const upload = kind === "upload";
 
-  return fetch("/plugins/" + kind, {
+  return request("/plugins/" + kind, {
     method: "POST",
     headers: { "Content-Type": upload ? "application/wasm" : "application/json" },
     body: upload ? bytes : JSON.stringify({ id }),
-    signal: AbortSignal.timeout(upload ? 30000 : 10000),
+    timeoutMs: upload ? TIMEOUT_MS.plugin : TIMEOUT_MS.action,
   });
 }
 
@@ -164,7 +164,7 @@ export function usePluginStore({ onInstalled, onUninstalled }) {
     setPending(starting);
 
     try {
-      const response = await fetch("/plugins", { signal: AbortSignal.timeout(6000) });
+      const response = await request("/plugins", { timeoutMs: TIMEOUT_MS.poll });
       if (refused(t, response)) {
         setPending(null);
         return;
@@ -177,7 +177,7 @@ export function usePluginStore({ onInstalled, onUninstalled }) {
         return;
       }
 
-      if (!(await jobStarted(await request(action), action.kind))) {
+      if (!(await jobStarted(await send(action), action.kind))) {
         setPending(null);
         return;
       }
