@@ -6,24 +6,20 @@ you can do the same. The photos are from my device. Each step says what to do, a
 way. Those notes are not instructions; they are there so you do not repeat my mistakes.
 
 The first install is the only hard part: the device has to be opened and wired to a USB-UART
-adapter. After that every update goes over Wi-Fi with the case closed. You will solder five thin
-wires to test pads next to the ESP32 module.
+adapter. After that every update goes over Wi-Fi with the case closed. You will solder four thin
+wires to test pads next to the ESP32 module (a fifth is optional).
 
 > [!CAUTION]
 > **Back up the stock firmware before you flash anything (step 7). Without the backup there is no
 > way back.** The chip's memory holds things that belong to your device alone and exist nowhere
-> else: its HomeKit data (setup code, IDs and keys) and Qingping's own settings. I found them in my
-> own backup. This firmware keeps its settings in the same area, so its first start may wipe them
-> and a factory reset wipes them for sure. After that the device cannot be added to Apple Home or
-> the Qingping app. Writing your backup back is the only fix I know; I have not tried setting
-> HomeKit up again from the code on the label. Keep the file to yourself.
+> else: its HomeKit data (setup code, IDs and keys) and Qingping's own settings. This firmware keeps
+> its settings in the same area, so its first start may wipe them and a factory reset wipes them for
+> sure. After that only your own backup brings Apple Home and the Qingping app back. I have written
+> mine back and the stock firmware ran again (step 12). Keep the file to yourself.
 >
 > The sticker on the side of the case matters too: under its QR code are a HomeKit house icon and
 > eight digits, your device's HomeKit setup code. Take a photo of it before you start and keep it
 > with the backup, and do not post it anywhere: that is why it is blurred in my photos.
->
-> Where exactly, for the curious: `factory_nvs` at 0x3F3000 (namespace `hap_setup`) and `nvs` at
-> 0x9000; this firmware's settings start at 0x3D0000.
 
 Contents:
 
@@ -49,8 +45,8 @@ Hardware:
   ([the one I bought on AliExpress](https://www.aliexpress.com/item/1005007339724808.html); any
   3.3 V CP2102, CH340 or FT232 board does the same job). It needs no driver on macOS.
 - A soldering iron, solder and flux.
-- Five thin insulated wires, best in five different colours. If some share a colour, tag each with
-  its pad.
+- Four thin insulated wires (five if you want the optional EN wire), best in different colours. If
+  some share a colour, tag each with its pad.
 - A multimeter.
 - A small Phillips screwdriver.
 - Strong double-sided tape and a small rigid plastic piece to stick on as a handle. Mine was a
@@ -152,39 +148,36 @@ board are the battery and the connectors to the rest of the device.
 
 ## 4. Find the pads
 
-The module is an ESP32-WROVER-B. Its pins and the test pads around it are mapped in
-[hardware.md](hardware.md#esp32-test-pads); the letters A to G are this project's names for the
-pads.
+The pads are next to the ESP32 module. The letters are the names this guide uses for them.
 
 ![Pad letters on the board](images/pin-numbers.svg)
 
-| Pad | Signal | Silkscreen |
+| Pad | What it is | Where |
 |---|---|---|
-| A | GPIO0 (IO0) | TP34, next to the gold mounting ring |
-| B | GND | one of TP32, TP21, TP23 |
-| C | RXD0 | one of TP32, TP21, TP23 |
-| D | TXD0 | one of TP32, TP21, TP23 |
-| G | EN | TP33 |
+| A | IO0, puts the chip into download mode | TP34, next to the gold mounting ring |
+| B | ground | in a row with C and D |
+| C | the chip's receive line | in a row with B and D |
+| D | the chip's transmit line | in a row with B and C |
+| G | EN, restarts the chip (optional) | TP33 |
 
-B, C and D sit in a row, and I could not read which TP number is which, so find them with a
-multimeter: B connects to the module's metal shield, C to module pin 34, D to pin 35.
+B, C and D sit in a row, and their printed numbers are hard to read, so tell them apart with a
+multimeter: B connects to the module's metal shield, C to module pin 34, D to pin 35. Module pins
+and measurements are in [hardware.md](hardware.md#esp32-test-pads).
 
 > **On my device:** nobody had published a pinout, so I found the pads myself with the module's
-> datasheet and a multimeter, with the device off. The number printed by the last pad looks like
-> "38" or "26" depending on the angle, so I checked with the multimeter instead: of that row only
-> pin 38 connects to the shield, and the datasheet says pin 38 is ground.
+> datasheet and a multimeter, with the device off.
 
 ## 5. Solder the wires and connect the adapter
 
 ![Wiring](images/wiring.svg)
 
-| Pad | Signal | Adapter pin | Wire in my photos |
-|---|---|---|---|
-| B | GND | GND | black |
-| D | TXD0 | RXI | white |
-| C | RXD0 | TXO | green |
-| A | GPIO0 (IO0) | not connected: touched to ground by hand | red, labelled IO0 |
-| G | EN | not connected: touched to ground by hand | red, labelled EN |
+| Pad | Adapter pin |
+|---|---|
+| B, ground | GND |
+| D, transmit | RXI |
+| C, receive | TXO |
+| A, IO0 | none: you touch it to ground by hand |
+| G, EN (optional) | none: you touch it to ground by hand |
 
 The adapter's 3V3 and +5V stay unconnected.
 
@@ -193,50 +186,51 @@ Soldering tips:
 - Pads A, C, D and G take solder easily at about 320 °C.
 - Pad B is joined to a large copper area that pulls the heat away. Add flux, raise the iron by 20 to
   30 °C (about 340 to 350 °C for leaded solder) and hold it a little longer.
+- Keep the wires short, and leave no loose wire end that can touch the board.
 - Then check with the multimeter that each wire connects to its pin and no two wires touch.
 
 ![Wires on the pads](images/install/07-wires-on-pads.jpg)
 
 ![The board from above with the wires on](images/install/08-board-top-view.jpg)
 
-Optional check with the device running on USB power: C, A and G read 3.3 V to ground, and D reads
-about 0.5 V.
-
-> **On my device:** I had no wires in different colours, so I took the ones out of an old USB
-> cable. That is why two of mine are red. I did not tag them at first, and it cost me a failed
-> attempt in step 6.
+> **On my device:** I had no wires in different colours, so the first time I took the ones out of
+> an old USB cable: black on B, white on D, green on C, and two red ones on A and G, as in the
+> photos. I did not tag the red ones at first, and it cost me a failed attempt in step 6.
 >
 > Pad B would not take solder at the temperature that worked on the others, until I added flux and
 > more heat. I soldered with the board still in the housing, and without noticing I melted the white
 > plastic next to the pads in a few places with the iron's shaft. Next time I would take the board
 > out first.
 >
-> Pad D showed 0.5 V and I thought the pin was dead or badly soldered. The module's pin itself
-> showed the same, so the joint was fine: the stock firmware simply does not use that pin. Step 6
-> shows it works.
+> Later I resoldered with four wires and no EN: green on A, black on B, white on C, red on D. At the
+> adapter: red to RXI, white to TXO, black to GND.
 
 ## 6. Download mode
 
-The adapter has no RTS line, so esptool cannot reset the chip into its bootloader by itself. Do it
-by hand, with the device on USB-C power:
+The chip has to be started in download mode before esptool can talk to it. The adapter cannot do
+that by itself, so you do it by hand, with the device on USB-C power. Touching a wire to ground
+means pressing its end against the module's metal shield.
 
-1. Hold the IO0 wire against ground (the module's metal shield is ground).
+**Without an EN wire:**
+
+1. Hold the IO0 wire (pad A) against ground.
+2. Turn the device off and on with the power button on the back.
+3. Release IO0.
+
+**With an EN wire:**
+
+1. Hold the IO0 wire against ground.
 2. Touch the EN wire to ground and take it away.
 3. Release IO0 about a second later.
 
-The chip now waits for esptool. To leave download mode, touch EN to ground again with IO0 free.
+The chip now waits for esptool. If the screen stays dark and esptool still cannot connect, check
+that you held IO0 and not EN: EN held on ground keeps the chip from starting.
 
-If the screen stays dark and esptool still cannot connect, the IO0 and EN wires are probably
-swapped: EN held on ground keeps the chip in reset.
-
-> **On my device:** the adapter had not arrived yet when the wires were on, so I checked download
-> mode with just the multimeter: IO0 twisted to ground, EN tapped to ground, and pad D went from
-> 0.5 V to a steady 3.3 V. So the pin works and download mode is not locked on this chip.
->
-> The adapter has a single GND pin, and the black wire takes it, so I ground IO0 and EN by pressing
-> their ends against the module's metal shield. My first attempt failed: the two red wires were not
-> labelled, I twisted EN to ground instead of IO0, and the chip would not start: the screen stayed
-> dark. Since then I tell them apart by the pad: the red wire by the gold mounting ring is IO0.
+> **On my device:** I first used the EN wire. My first attempt failed: the two red wires were not
+> labelled, I held EN to ground instead of IO0, and the screen stayed dark. Later I found the power
+> button does the same job, and dropped the EN wire. I did that with the stock firmware on the
+> chip, and it came back in download mode. With this firmware the button does not cut the power on
+> USB, so I have not tried it there.
 
 ## 7. Back up the stock firmware
 
@@ -260,9 +254,9 @@ then read the whole 4 MB flash:
 esptool.py --port /dev/cu.usbserial-0001 --baud 115200 --before no_reset read_flash 0 0x400000 cgdn1-stock.bin
 ```
 
-It takes about six and a half minutes at 115200 baud. If any command fails, enter download mode
-again and repeat it. esptool checks every block it reads, and the file must be exactly 4194304
-bytes:
+It takes about six and a half minutes at 115200 baud. Do not go faster. If any command fails, enter
+download mode again and repeat it. esptool checks every block it reads, and the file must be exactly
+4194304 bytes:
 
 ```bash
 ls -l cgdn1-stock.bin
@@ -270,12 +264,9 @@ ls -l cgdn1-stock.bin
 
 Copy the file somewhere safe, off this computer, in two places, and keep it private.
 
-> **On my device:** I first tried a faster speed, 921600, to save time. It broke off halfway, and
-> the chip would not answer until I entered download mode again. At 115200 the backup took about six
-> minutes and finished.
->
-> The chip also reported that nothing on it is locked: no flash encryption, no secure boot. That is
-> why Qingping's firmware can be read and replaced at all.
+> **On my device:** I tried faster speeds to save time. At 921600 the read broke off halfway and
+> the chip would not answer until I entered download mode again; at 460800 it failed too. At 115200
+> the backup took about six minutes and finished.
 
 ## 8. Build the firmware
 
@@ -312,8 +303,9 @@ idf.py -p /dev/cu.usbserial-0001 -b 115200 flash monitor
 This writes everything, the bootloader included. The bootloader never changes over Wi-Fi, and it is
 what rolls back a bad update later, so this first flash matters.
 
-When the flash is done, touch EN to ground with IO0 free to restart the chip. `idf.py monitor`
-shows the boot log; leave it with `Ctrl+]`.
+When the flash is done, restart the chip with IO0 free: touch EN to ground. Without an EN wire, try
+turning the device off and on with the power button; I have not tested that right after a flash.
+`idf.py monitor` shows the boot log; leave it with `Ctrl+]`.
 
 On the first start the device generates its own setup password and installs the standard screens.
 With no Wi-Fi saved, the screen shows a QR code for the setup access point `CGDN1-setup-XXXX`,
@@ -348,18 +340,27 @@ build again, then on the System page of the web interface use "Install from file
 `firmware/build/cgdn1.bin`. The device restarts into it, and if the new version runs fine for a
 minute, it stays.
 
-Leave a way back to the pads. One way, shown here: route the wires out through the back grille,
-next to the USB-C socket, so the case closes with them still reachable.
+Then decide about the wires:
+
+- If you keep them, keep them short and check that no bare end can touch the board when the case is
+  closed. An EN wire is the one that can restart a frozen device from outside; without it, a frozen
+  build means opening the case again. If you keep it, keep it short and its end insulated.
+- One way to keep them reachable, shown here: route them out through the back grille, next to the
+  USB-C socket.
 
 ![Wires routed out through the back grille](images/install/11-wires-through-vent.jpg)
 
-Then put the plate back with its two screws, fold the panel back, and press the front glass down:
-the old adhesive holds it. New thin double-sided tape is optional.
+Put the plate back with its two screws, fold the panel back, and press the front glass down: the
+old adhesive holds it. New thin double-sided tape is optional.
 
-> **On my device:** I left the wires out through the grille, and it paid off. On 2026-10-20 a new
-> build froze about two minutes after start: it did not restart by itself, and a long press of the
-> power button did nothing. A tap of EN to ground over those wires brought it back. Without them I
-> would have opened the case again.
+> **On my device:** keeping the wires paid off once. On 2026-10-20 a new build froze about two
+> minutes after start, and a long press of the power button did nothing. A tap of EN to ground over
+> those wires brought it back.
+>
+> They also caused trouble. With the wires left soldered and dangling inside the case, the device
+> stopped responding and restarted by itself, even on the stock firmware. After I removed the EN
+> wire and put the case back together carefully, it runs normally. I do not know which of the two
+> fixed it, so: short wires, no loose EN wire, and a look at what touches what before you close it.
 
 ## 12. When something goes wrong
 
@@ -367,9 +368,10 @@ the old adhesive holds it. New thin double-sided tape is optional.
 crossed (pad D to the adapter's RXI, pad C to TXO); GND is connected; you entered download mode
 right before the command; the baud rate is 115200.
 
-**The screen went dark and stays dark.** The chip is either in download mode or held in reset.
-Free IO0 and EN, then touch EN to ground once. If it is still dark, check that EN is not shorted to
-ground.
+**The screen went dark and stays dark.** The chip is either in download mode or not starting. Free
+IO0 and EN, then restart it: touch EN to ground. Without an EN wire, try turning the device off and
+on with the power button (not tested in every state). If it is still dark, check that EN is not
+shorted to ground.
 
 **An update over Wi-Fi does not start properly.** If a new version does not start properly or keeps
 crashing, the device goes back to the previous one by itself, and the System page says so.
@@ -388,8 +390,10 @@ The device then takes only images signed with the new key.
 **Back to the stock firmware.** Write the whole backup over the pads, in download mode:
 
 ```bash
-esptool.py --port /dev/cu.usbserial-0001 --baud 115200 --before no_reset write_flash 0 cgdn1-stock.bin
+esptool.py --chip esp32 --port /dev/cu.usbserial-0001 --baud 115200 --before no_reset --after no_reset write_flash 0 cgdn1-stock.bin
 ```
 
-This restores everything the backup holds, the HomeKit data and keys included. I have not tried it
-on my device yet, so keep the backup you made in step 7 untouched.
+This restores everything the backup holds, the HomeKit data and keys included. On my device it took
+about four minutes at 115200 and esptool reported the data verified. Then restart the chip as at
+the end of step 9; the stock firmware started and ran again. To come back to this firmware
+afterwards, flash it again as in step 9.
