@@ -2,3 +2,7 @@
 line-length = 100
 # esp_psram is ESP-IDF's, copied unchanged to be overridden.
 extend-exclude = ["*.md", "firmware/components/esp_psram"]
+
+[tool.ruff.lint]
+# pycodestyle errors and warnings, pyflakes, import order.
+select = ["E", "W", "F", "I"]
