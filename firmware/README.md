@@ -258,8 +258,10 @@ local network's traffic can take a session; the signature is what keeps a foreig
 - **Temperature correction**: an offset of -3.0 to +3.0 °C in steps of 0.1 (`temp_offset.c`, host
   test `test/temp_offset/run.sh`), one record in the core settings, read and written as
   `temp_offset` in `GET /config` and `POST /config` (0 by default). `sensor_get` adds it to every
-  temperature, so the panel, the plugins and `GET /sensors` all show the corrected value. Humidity
-  is reported as measured. The System page of the web interface edits it.
+  temperature, so the panel, the plugins and `GET /sensors` all show the corrected value. It also
+  recomputes every humidity for the corrected temperature at the same water vapour content
+  (`temp_offset_humidity`, Sensirion's Physics of Humidity application note, equation 10), capped
+  at 100 %RH. The System page of the web interface edits it.
 - **Burn-in protection**: a 2 px pixel orbit applied when the frame is flushed, one step every
   60 s, always on.
 - **Time**: SNTP from `pool.ntp.org`, the zone fixed to Kyiv (`net.c`).
