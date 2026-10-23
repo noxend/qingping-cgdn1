@@ -41,8 +41,7 @@ esp_err_t http_error(httpd_req_t *req, httpd_err_code_t code, const char *msg) {
   bufappend(body, &n, sizeof(body), "{\"error\":\"%s\"}", text);
   httpd_resp_set_status(req, status_line(code));
   httpd_resp_set_type(req, HTTPD_TYPE_JSON);
-  httpd_resp_send(req, body, n);
-  return ESP_FAIL;
+  return httpd_resp_send(req, body, n);
 }
 
 static esp_err_t open_guarded(httpd_req_t *req);
