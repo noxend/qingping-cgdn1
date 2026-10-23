@@ -68,10 +68,19 @@ function fwVersion() {
   return text.match(/^#define FW_VERSION "([0-9.]+)"/m)[1];
 }
 
-// Compares dotted versions part by part, as Python compares lists of ints.
+function versionParts(v) {
+  return v.split(".").map((part) => {
+    if (!/^[0-9]+$/.test(part)) {
+      throw new Error(`version ${v} is not dotted numbers`);
+    }
+    return Number(part);
+  });
+}
+
+// Part by part; when one is a prefix of the other, the shorter sorts first.
 function compareVersions(a, b) {
-  const x = a.split(".").map(Number);
-  const y = b.split(".").map(Number);
+  const x = versionParts(a);
+  const y = versionParts(b);
   for (let i = 0; i < Math.min(x.length, y.length); i++) {
     if (x[i] !== y[i]) {
       return x[i] - y[i];

@@ -45,8 +45,9 @@ curl -fsS -A "Mozilla/5.0 fw_manifest test" "https://cgdn1.swithy.com/manifest.j
 openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out other.pem 2>/dev/null
 node --input-type=module - "$FW/../tools/publish_fw.mjs" "$IMAGE" <<'JS'
 import { readFileSync, writeFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 const [, publisher, imagePath] = process.argv.slice(1);
-const p = await import(publisher);
+const p = await import(pathToFileURL(publisher).href);
 const data = readFileSync(imagePath);
 const seq = Math.floor(Date.now() / 1000);
 function write(name, env) {
