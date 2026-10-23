@@ -25,32 +25,42 @@ install yourself.
 ### The touch strip
 
 - **Slide** a finger along the strip: the next screen.
-- **Hold** a finger on it: the menu opens.
 
-In the menu, sliding right moves down the list, sliding left moves up, and a hold chooses. The menu
-closes by itself after 30 seconds without a touch. Its rows:
-
-- **Info**: firmware version, IP address, Wi-Fi network, uptime.
-- **Wi-Fi setup**: a QR code for the setup access point, with its name under it. Scan it with a
-  phone camera to join. Slide to see the name, password and address as text. If the device is
-  online it asks "Start hotspot?" first; Yes brings the access point up for 10 minutes.
-- **Factory reset**: asks again; slide to "Yes, reset" and hold.
-- **Back**.
-
-The menu is in English only.
+In the menu the strip moves and chooses: sliding right moves down the list, sliding left moves up,
+and a tap chooses.
 
 ### The power button
 
 The button on the back:
 
 - **Short press**: turns the screen and the indicator off, or back on. A touch on the strip also
-  turns them back on.
-- **Hold for 2 seconds**: the screen shows "Powering off" and the device powers off when you let
-  go. Hold it for 2 seconds again to power it on; the screen shows "Starting" until the first
-  screen is ready. In the first minute after a firmware update the hold does
-  nothing, until the new version has confirmed itself.
-- **On USB power** the device cannot cut its own power: after the hold it stays dark and ignores
-  the strip and short presses until the next 2 second hold, which starts it again.
+  turns them back on. In the menu a short press goes back one page, and from the list it closes
+  the menu.
+- **Hold for 1 second**: the menu opens.
+- **Hold for 5 seconds**: the screen shows "Powering off" and the device powers off when you let
+  go, whatever the menu is doing. Hold the button for 2 seconds to power it on again; the screen
+  shows "Starting" until the first screen is ready.
+- **On USB power** the device cannot cut its own power: after a power off it stays dark and ignores
+  the strip and short presses until the next 1 second hold, which starts it again.
+
+In the first minute after a firmware update, power off does nothing, from the button or the menu,
+until the new version has confirmed itself.
+
+### The menu
+
+The menu closes by itself after 30 seconds without a touch. Its rows:
+
+- **Power off**: the same as the 5 second hold.
+- **Restart**.
+- **Wi-Fi setup**: a QR code for the setup access point, with its name under it. Scan it with a
+  phone camera to join. Slide to see the name, password and address as text; tap to go back. If
+  the device is online it asks "Start hotspot?" first; Yes brings the access point up for 10
+  minutes.
+- **Factory reset**: asks again; slide to "Yes, reset" and tap. "No" goes back.
+- **Info**: firmware version, IP address, Wi-Fi network, uptime, and Back.
+- **Back**: closes the menu.
+
+The menu is in English only.
 
 ### Night mode and burn-in protection
 
