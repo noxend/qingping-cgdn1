@@ -75,7 +75,7 @@ A device that ran a build from before 1.0.0-rc2 has neither. The migration build
 the old `CONFIG_PASS` still in `secrets.h` (at most 63 characters, no space), stores that
 password's hash when home Wi-Fi is saved and reports `"cfg_migrated":"ok"` in `GET /status`
 ("skipped" without saved Wi-Fi); it also takes `CONFIG_PASS` itself as the password, as a fallback. Then a
-release build goes on top. The migration build is a DEV build, so `publish_fw.py` refuses it:
+release build goes on top. The migration build is a DEV build, so `publish_fw.mjs` refuses it:
 
 ```bash
 idf.py -B build-migrate -DDEV_BUILD=1 -DCGDN1_MIGRATE=1 build
@@ -122,7 +122,7 @@ build's cache never holds it:
 idf.py -B build-soak -DEXTRA_COMPONENT_DIRS=$HOME/Desktop/repos/cgdn1-dev/components build
 ```
 
-It reports `"dev":true` and `"test_hooks":true` in `GET /status`, and `tools/publish_fw.py`
+It reports `"dev":true` and `"test_hooks":true` in `GET /status`, and `tools/publish_fw.mjs`
 refuses it: the publisher builds with an empty `EXTRA_COMPONENT_DIRS` and checks the build's
 component list. The web interface shows its Developer page whenever `dev` is true, so a `DEV_BUILD`
 image without `test_hooks` shows it too, with the diagnostics only; the controls that need the test
@@ -164,7 +164,7 @@ names a version above its own, and on "Update" downloads the image itself (`POST
 published with
 
 ```bash
-python3 -I tools/publish_fw.py --notes "What changed"   # --dry-run builds and signs only
+node tools/publish_fw.mjs --notes "What changed"   # --dry-run builds and signs only
 ```
 
 which builds from a clean tree with `DEV_BUILD` off and refuses a version not above the live one.
@@ -211,7 +211,7 @@ manifest's size and sha256 and to its own version, and `esp_ota_end` checks the 
   `sdkconfig.defaults` keeps the in-tree name, so a fresh checkout fails to build until the key is
   in place. Keep a copy off this machine: without it no further OTA image is accepted and the device
   has to be opened for a serial flash.
-- **Signed web manifest**: the hosted interface is published with `tools/publish_web.py`, which signs
+- **Signed web manifest**: the hosted interface is published with `tools/publish_web.mjs`, which signs
   with `~/.config/cgdn1/web_signing_key.pem`; its public half is `components/net/web_manifest_pub.pem`. Keep a
   copy of this key too: without it the interface cannot be updated until a firmware with a new
   public key ships. Both keys are unencrypted, mode 0600, by decision (2026-10-19): a passphrase would
