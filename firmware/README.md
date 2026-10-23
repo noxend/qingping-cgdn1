@@ -75,7 +75,7 @@ A device that ran a build from before 1.0.0-rc2 has neither. The migration build
 the old `CONFIG_PASS` still in `secrets.h` (at most 63 characters, no space), stores that
 password's hash when home Wi-Fi is saved and reports `"cfg_migrated":"ok"` in `GET /status`
 ("skipped" without saved Wi-Fi); it also takes `CONFIG_PASS` itself as the password, as a fallback. Then a
-release build goes on top. The migration build is a DEV build, so `publish_fw.py` refuses it:
+release build goes on top. The migration build is a DEV build, so `publish_fw.mjs` refuses it:
 
 ```bash
 idf.py -B build-migrate -DDEV_BUILD=1 -DCGDN1_MIGRATE=1 build
@@ -122,7 +122,7 @@ build's cache never holds it:
 idf.py -B build-soak -DEXTRA_COMPONENT_DIRS=$HOME/Desktop/repos/cgdn1-dev/components build
 ```
 
-It reports `"dev":true` and `"test_hooks":true` in `GET /status`, and `tools/publish_fw.py`
+It reports `"dev":true` and `"test_hooks":true` in `GET /status`, and `tools/publish_fw.mjs`
 refuses it: the publisher builds with an empty `EXTRA_COMPONENT_DIRS` and checks the build's
 component list. The web interface shows its Developer page whenever `dev` is true, so a `DEV_BUILD`
 image without `test_hooks` shows it too, with the diagnostics only; the controls that need the test
@@ -164,7 +164,7 @@ names a version above its own, and on "Update" downloads the image itself (`POST
 published with
 
 ```bash
-python3 -I tools/publish_fw.py --notes "What changed"   # --dry-run builds and signs only
+node tools/publish_fw.mjs --notes "What changed"   # --dry-run builds and signs only
 ```
 
 which builds from a clean tree with `DEV_BUILD` off and refuses a version not above the live one.
@@ -189,7 +189,7 @@ manifest's size and sha256 and to its own version, and `esp_ota_end` checks the 
   it has one, the menu asks "Start hotspot?" and Yes brings the AP up for 10 minutes. With no network
   saved the screen shows the Wi-Fi setup page at boot and after 30 s of no touch in the menu.
   After a save from the setup page, the first join of the next boot shows "Connected" with
-  `cgdn1.local` and the IP for 5 minutes (30 s after a touch) or until a hold (`net_saved_before_boot`, a `.noinit` flag).
+  `cgdn1.local` and the IP for 5 minutes (30 s after a touch) or until a tap or a power button click (`net_saved_before_boot`, a `.noinit` flag).
 - **Captive portal**: the AP's DHCP offer names 10.47.0.1 as the DNS server and a raw lwIP UDP pcb
   (no socket, no task) answers every A question with that address (`net/dns_answer.c`). A setup AP
   client asking for another host, whatever the path, gets a 302 to
@@ -211,7 +211,7 @@ manifest's size and sha256 and to its own version, and `esp_ota_end` checks the 
   `sdkconfig.defaults` keeps the in-tree name, so a fresh checkout fails to build until the key is
   in place. Keep a copy off this machine: without it no further OTA image is accepted and the device
   has to be opened for a serial flash.
-- **Signed web manifest**: the hosted interface is published with `tools/publish_web.py`, which signs
+- **Signed web manifest**: the hosted interface is published with `tools/publish_web.mjs`, which signs
   with `~/.config/cgdn1/web_signing_key.pem`; its public half is `components/net/web_manifest_pub.pem`. Keep a
   copy of this key too: without it the interface cannot be updated until a firmware with a new
   public key ships. Both keys are unencrypted, mode 0600, by decision (2026-10-19): a passphrase would
@@ -240,17 +240,22 @@ local network's traffic can take a session; the signature is what keeps a foreig
 
 ## On the device: menu, power button, night profile, temperature
 
-- **Touch strip**: a slide moves the carousel to the next screen; a hold opens the menu. In the
-  menu a slide to the right moves down the list, to the left up, and a hold selects. Rows: Info
-  (version, IP, SSID, uptime), Wi-Fi setup (a Wi-Fi QR code of the AP with its name; a slide shows name, password, address as text), Factory reset (asks No / Yes, reset), Back. The menu closes after 30 s without a touch. Its
-  strings are English (`components/ui/menu.c`).
+- **Touch strip**: a slide moves the carousel to the next screen. In the menu a slide to the right
+  moves down the list, to the left up, and a tap selects. A hold on the strip does nothing; it is
+  kept for later.
+- **Menu** (`components/ui/menu.c`, host test in `test/plugins/run.sh`): a 1 s hold on the power
+  button opens it, a click goes back one page and closes it from the list. Rows: Power off,
+  Restart, Wi-Fi setup (a Wi-Fi QR code of the AP with its name; a slide shows name, password,
+  address as text), Factory reset (asks No / Yes, reset), Info (version, IP, SSID, uptime, Back),
+  Back. The menu closes after 30 s without a touch. Its strings are English.
 - **Power button** (GPIO36, pulled low by the ATtiny814 while held): `button.c` polls the line,
   `button_press.c` decides (host test `test/button/run.sh`). A click blanks or wakes the panel and
-  the LED; a 2 s hold shows "Powering off" and powers the board off (on USB it stays dark until the
-  next 2 s hold restarts it); while an update is unconfirmed the hold is ignored, since a power cut
-  would roll it back. The panel shows "Starting" from `oled_init` until the first screen. `GET
-  /status` reports `btn` (armed, level, clicks, longs) and `off`, the reason the last power off
-  noted.
+  the LED, or goes back in the menu; a 1 s hold opens the menu; a 5 s hold shows "Powering off" and
+  powers the board off whatever the menu does (on USB it stays dark until the next hold restarts
+  it). The menu's Power off takes the same path on the main task. While an update is unconfirmed
+  power off is ignored, since a power cut would roll it back. The panel shows "Starting" from
+  `oled_init` until the first screen. `GET /status` reports `btn` (armed, level, clicks, holds,
+  longs) and `off`, the reason the last power off noted.
 - **Night profile**: one record in the core settings, read and written as `night` in `GET /config`
   and `POST /config` (off by default, 22:00 to 08:00, screen 30 %, indicator 20 %). Inside the
   window the panel's level table is scaled down or the panel goes dark, and the LED is scaled.

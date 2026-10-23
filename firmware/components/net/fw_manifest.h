@@ -1,5 +1,5 @@
 // The firmware release channel: https://cgdn1.swithy.com/firmware.json, published by
-// tools/publish_fw.py in the signed envelope (signed_envelope.h) around
+// tools/publish_fw.mjs in the signed envelope (signed_envelope.h) around
 //   {"kind":"firmware","seq":<unix time>,"version":"0.27.6",
 //    "url":"https://cgdn1.swithy.com/fw/0.27.6/cgdn1.bin","sha256":"<64 hex>",
 //    "size":<bytes>,"notes":"..."}
