@@ -300,6 +300,9 @@ export const uk = {
   "system.tempOffset": "Поправка",
   "system.tempNow": "Зараз показує: {value}",
   "system.tempSave": "Зберегти",
+  "system.time": "Час",
+  "system.timeZone": "Часовий пояс",
+  "system.timeNow": "Зараз: {time}",
 
   "dev.title": "Розробка",
   "dev.noAnswer": "{label}: пристрій не відповів",

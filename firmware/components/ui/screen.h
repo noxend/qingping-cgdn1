@@ -14,11 +14,12 @@ void core_hold(void);
 
 // The power button, from any task: a click goes back in the device menu, and
 // outside it blanks the panel and the LED or brings them back; a hold opens the
-// menu. The power-off path shows "Powering off" with the LED dark, or blanks both,
-// for good.
+// menu. The power-off path shows "Powering off" (or "Low battery") with the LED
+// dark, or blanks both, for good.
 void screen_manager_button_click(void);
 void screen_manager_button_hold(void);
 void screen_manager_powering_off(void);
+void screen_manager_low_battery(void);
 void screen_manager_display_off(void);
 // The firmware version the device menu shows (api owns the define).
 void screen_manager_set_version(const char *version);

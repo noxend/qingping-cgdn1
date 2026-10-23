@@ -182,6 +182,7 @@ typedef enum {
   DISPLAY_MENU,
   DISPLAY_OFF,
   DISPLAY_POWERING_OFF,
+  DISPLAY_LOW_BATTERY,
 } display_cmd_t;
 static volatile int s_dropped;   // events lost to a full queue
 static bool s_neighbours_stale;  // the carousel must redraw the screens beside the shown one
@@ -655,6 +656,8 @@ static void handle_display(display_cmd_t cmd) {
   display_set(true);
   if (cmd == DISPLAY_POWERING_OFF) {
     text_show_message("Powering off");
+  } else if (cmd == DISPLAY_LOW_BATTERY) {
+    text_show_message("Low battery");
   }
 }
 
@@ -1069,6 +1072,10 @@ void screen_manager_display_off(void) {
 
 void screen_manager_powering_off(void) {
   power_down_post(DISPLAY_POWERING_OFF);
+}
+
+void screen_manager_low_battery(void) {
+  power_down_post(DISPLAY_LOW_BATTERY);
 }
 
 void screen_manager_set_version(const char *version) {
