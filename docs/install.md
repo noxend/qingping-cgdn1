@@ -1,9 +1,7 @@
 # Installing the firmware
 
-This is how I put the custom firmware on my own Qingping Air Monitor Lite (CGDN1), written down so
-you can do the same. The photos are from my device. Each step says what to do, and then, under
-"On my device", how it went for me: what I tried, what went wrong and why I ended up doing it this
-way. Those notes are not instructions; they are there so you do not repeat my mistakes.
+How to put the custom firmware on a Qingping Air Monitor Lite (CGDN1). The photos are from my
+device.
 
 The first install is the only hard part: the device has to be opened and wired to a USB-UART
 adapter. After that every update goes over Wi-Fi with the case closed. You will solder four thin
