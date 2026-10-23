@@ -7,6 +7,7 @@
 #include "freertos/semphr.h"
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 
 #define PIN_MOSI 4
@@ -14,11 +15,13 @@
 #define PIN_DC 2
 #define PIN_CS 15
 #define PIN_RST 22
-#define SPI_HZ (8 * 1000 * 1000)
+#define SPI_HZ_A (8 * 1000 * 1000)
+#define SPI_HZ_B (2 * 1000 * 1000)
 
-// Native GRAM: 128 columns by 160 rows. A column is 80 bytes, each byte two
-// vertically adjacent pixels as nibbles (low nibble = even row). Landscape x
-// runs along the 160 rows, y along the streamed columns.
+// Native GRAM of panel A: 128 columns by 160 rows. A column is 80 bytes, each
+// byte two vertically adjacent pixels as nibbles (low nibble = even row).
+// Landscape x runs along the 160 rows, y along the streamed columns. Panel B is
+// streamed in pages (oled_compose.h), built from the same columns.
 #define COL_BYTES (160 / 2)
 
 // How the frame is streamed: orientation (bit 0 mirrors x, the 160 panel rows;
@@ -30,15 +33,26 @@ static int s_orbit_step;
 
 static const char *TAG = "oled";
 
-// Init stream for lcd_id == 1, from oled_drive_write_init_command in the
-// stock firmware (verified on this unit through the ESPHome component). The
-// stock sends the closing 0xAF (display on) only after the whole panel RAM has
-// been cleared, so it is not part of this table.
-static const uint8_t INIT_SEQ[] = {
+// Init streams for lcd_id == 1 (panel A) and any other lcd_id (panel B), from
+// oled_drive_write_init_command in the stock firmware. Panel A's is verified on
+// the maintainer's unit; panel B's is read from the stock image only, no unit with
+// that panel has been seen. The stock sends the closing 0xAF (display on) only
+// after a frame has been written, so it is not part of these tables.
+static const uint8_t INIT_A[] = {
     0xAE, 0x20, 0x00, 0x81, 0xD0, 0xAD, 0x00, 0xA0, 0xC8, 0xA8, 0x7F, 0xD3, 0x10, 0xD5,
     0x07, 0xD9, 0x40, 0x40, 0x40, 0x05, 0x98, 0x00, 0xDB, 0x2B, 0xDA, 0xC0, 0xA4, 0xA6,
 };
+static const uint8_t INIT_B[] = {
+    0xAE, 0x20, 0x81, 0xD0, 0xA0, 0xA6, 0xA9, 0x02, 0xAD, 0x80,
+    0xC0, 0xD5, 0xF0, 0xD9, 0x13, 0xDB, 0x2B, 0xDC, 0x35, 0x30,
+};
 #define CMD_DISPLAY_ON 0xAF
+
+static oled_panel_t s_panel;
+// Panel B's frame as streamed, OLED_PAGES * OLED_PAGE_BYTES; NULL on panel A.
+static uint8_t *s_pages;
+// One composed column, streamed from here.
+static uint8_t s_line[COL_BYTES] __attribute__((aligned(4)));
 
 // NULL until init succeeds; flush and commands are no-ops before that.
 static spi_device_handle_t s_dev;
@@ -74,15 +88,32 @@ static void panel_reset(void) {
   vTaskDelay(pdMS_TO_TICKS(10));
 }
 
+// Panel B, as the stock oled_drive_refresh_gram streams it: per page the address
+// B0 <page> 00 11 (column 16), then the page's 128 bytes.
+static void flush_pages_locked(void) {
+  for (int col = 0; col < OLED_H; col++) {
+    oled_compose_column(s_fb, col, &s_compose, s_line);
+    oled_compose_pages(s_line, col, s_pages);
+  }
+  for (int page = 0; page < OLED_PAGES; page++) {
+    const uint8_t address[] = {0xB0, (uint8_t) page, 0x00, 0x11};
+    send(address, sizeof(address), 0);
+    send(s_pages + page * OLED_PAGE_BYTES, OLED_PAGE_BYTES, 1);
+  }
+}
+
 // Every column goes through the compose step (orientation, orbit, levels), so
 // the panel never shows the framebuffer as drawn; the web mirror does.
 static void flush_locked(void) {
-  static uint8_t line[COL_BYTES] __attribute__((aligned(4)));
+  if (s_panel == OLED_PANEL_B) {
+    flush_pages_locked();
+    return;
+  }
   cmd(0x00);  // column address low nibble = 0
   cmd(0x10);  // column address high nibble = 0
   for (int col = 0; col < OLED_H; col++) {
-    oled_compose_column(s_fb, col, &s_compose, line);
-    send(line, COL_BYTES, 1);
+    oled_compose_column(s_fb, col, &s_compose, s_line);
+    send(s_line, COL_BYTES, 1);
   }
 }
 
@@ -90,14 +121,27 @@ static void flush_locked(void) {
 // display on.
 static void panel_bring_up(void) {
   panel_reset();
-  for (size_t i = 0; i < sizeof(INIT_SEQ); i++) {
-    cmd(INIT_SEQ[i]);
+  const uint8_t *init = INIT_A;
+  size_t init_len = sizeof(INIT_A);
+  if (s_panel == OLED_PANEL_B) {
+    init = INIT_B;
+    init_len = sizeof(INIT_B);
+  }
+  for (size_t i = 0; i < init_len; i++) {
+    cmd(init[i]);
   }
   flush_locked();
   cmd(CMD_DISPLAY_ON);
 }
 
-esp_err_t oled_init(void) {
+esp_err_t oled_init(oled_panel_t panel) {
+  s_panel = panel;
+  if (panel == OLED_PANEL_B) {
+    s_pages = heap_caps_calloc(OLED_PAGES, OLED_PAGE_BYTES, MALLOC_CAP_DMA);
+    if (!s_pages) {
+      return ESP_ERR_NO_MEM;
+    }
+  }
   // Chip select is held low for good, as the stock firmware does (single
   // device on the bus): toggling it per byte makes the controller drop the
   // argument of a two byte command.
@@ -114,7 +158,7 @@ esp_err_t oled_init(void) {
       .sclk_io_num = PIN_SCLK,
       .quadwp_io_num = -1,
       .quadhd_io_num = -1,
-      .max_transfer_sz = COL_BYTES,
+      .max_transfer_sz = OLED_PAGE_BYTES,  // the longest write, a panel B page
   };
   esp_err_t e = spi_bus_initialize(SPI2_HOST, &bus, SPI_DMA_CH_AUTO);
   if (e != ESP_OK) {
@@ -122,7 +166,7 @@ esp_err_t oled_init(void) {
     return e;
   }
   spi_device_interface_config_t dev = {
-      .clock_speed_hz = SPI_HZ,
+      .clock_speed_hz = panel == OLED_PANEL_B ? SPI_HZ_B : SPI_HZ_A,
       .mode = 0,
       .spics_io_num = -1,
       .queue_size = 1,
@@ -146,6 +190,10 @@ esp_err_t oled_init(void) {
   panel_bring_up();
   xSemaphoreGive(s_lock);
   return ESP_OK;
+}
+
+oled_panel_t oled_panel(void) {
+  return s_panel;
 }
 
 void oled_copy_framebuffer(uint8_t *out) {

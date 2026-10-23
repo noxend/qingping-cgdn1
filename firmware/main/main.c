@@ -23,6 +23,7 @@
 #include "button.h"
 #include "creds.h"
 #include "dev_switches.h"
+#include "factory_record.h"
 #include "fw_manifest.h"
 #include "fw_update.h"
 #include "led.h"
@@ -123,19 +124,22 @@ static void on_menu_power_off(void) {
   }
 }
 
+// The stock rule: panel A for lcd_id 1, B for any other. With no record (a unit
+// that ran an earlier version of this firmware lost it) A, the panel of every unit
+// seen so far.
+static oled_panel_t panel_type(void) {
+  factory_record_t record;
+  if (factory_record_get(&record) && record.lcd_id != 1) {
+    return OLED_PANEL_B;
+  }
+  return OLED_PANEL_A;
+}
+
 void app_main(void) {
   power_latch_hold();
   console_start();
   heap_large_install();  // before any TLS session or JSON
   creds_seed_entropy();  // before touch and Wi-Fi: it borrows the SAR ADC
-  if (oled_init() == ESP_OK) {
-    text_init();
-    text_show_message("Starting");  // until the first screen, a few seconds on
-  } else {
-    ESP_LOGE(TAG, "display init failed");
-  }
-  led_init();
-  touch_start(core_touch, core_hold);
 
   bool pending_verify = rollback_boot();
   const esp_partition_t *running = esp_ota_get_running_partition();
@@ -144,9 +148,19 @@ void app_main(void) {
   ESP_LOGI(TAG, "CGDN1 fw %s (idf %s), build %s %s, slot %s%s", FW_VERSION, app->idf_ver, app->date,
            app->time, running->label, pending_verify ? " (unconfirmed)" : "");
 
-  rollback_bootloop_check();
+  rollback_bootloop_check();  // before the flash work below, so a crash in it is counted
 
   system_nvs_init();
+  factory_record_load();  // before settings_init, which takes the record's flash
+  if (oled_init(panel_type()) == ESP_OK) {
+    text_init();
+    text_show_message("Starting");  // until the first screen, a few seconds on
+  } else {
+    ESP_LOGE(TAG, "display init failed");
+  }
+  led_init();
+  touch_start(core_touch, core_hold);
+
   settings_init();
   system_last_off_load();
   creds_init();
