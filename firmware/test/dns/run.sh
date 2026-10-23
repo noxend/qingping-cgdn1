@@ -23,7 +23,7 @@ check() {
   fi
 }
 
-"$WORK/harness" serve "$PORT" 5 > "$WORK/out" &
+"$WORK/harness" serve "$PORT" 5 >"$WORK/out" &
 SERVER=$!
 until grep -q ready "$WORK/out" 2>/dev/null; do sleep 0.1; done
 ask() {
@@ -50,4 +50,8 @@ check "no type and class" "$(once 123401000001000000000000036162630000)" "none"
 check "name pointer" "$(once 123401000001000000000000c00c00010001)" "none"
 check "no zero label" "$(once 123401000001000000000000036162636465)" "none"
 
-[[ $failed == 0 ]] && echo "ALL PASS" || { echo "$failed FAILED"; exit 1; }
+if [[ $failed != 0 ]]; then
+  echo "$failed FAILED"
+  exit 1
+fi
+echo "ALL PASS"

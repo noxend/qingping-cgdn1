@@ -19,8 +19,9 @@ void sensors_start(void);
 bool sensor_get(sensor_id_t id, sensor_reading_t *out);
 
 // The temperature calibration in tenths of a degree (temp_offset.h), kept in the core
-// settings. sensor_get adds it to every temperature, so the panel, the plugins and
-// /sensors all show the corrected value. 0 until set.
+// settings. sensor_get adds it to every temperature and recomputes the humidity for the
+// corrected temperature, so the panel, the plugins and /sensors all show corrected
+// values. 0 until set.
 int16_t sensors_temp_offset(void);
 
 // Stores the offset and applies it from the next sensor_get. False when it is out of
