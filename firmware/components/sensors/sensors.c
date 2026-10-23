@@ -57,16 +57,22 @@ bool sensor_get(sensor_id_t id, sensor_reading_t *out) {
     return false;
   }
   slot_t slot;
+  slot_t temp;  // the SHT4x reads both, so this is the temperature the humidity was measured at
   taskENTER_CRITICAL(&s_mux);
   slot = s_slots[id];
+  temp = s_slots[SENSOR_TEMP];
   taskEXIT_CRITICAL(&s_mux);
   int64_t age_ms = slot.have ? (esp_timer_get_time() - slot.at_us) / 1000 : 0;
   if (age_ms > UINT32_MAX) {
     age_ms = UINT32_MAX;  // a long-dead sensor must not wrap back to "fresh"
   }
+  int16_t offset = (int16_t) atomic_load(&s_temp_offset);
   out->value = slot.value;
   if (id == SENSOR_TEMP && slot.have) {
-    out->value = temp_offset_apply(slot.value, (int16_t) atomic_load(&s_temp_offset));
+    out->value = temp_offset_apply(slot.value, offset);
+  }
+  if (id == SENSOR_HUM && slot.have && temp.have) {
+    out->value = temp_offset_humidity(slot.value, temp.value, offset);
   }
   out->age_ms = (uint32_t) age_ms;
   out->valid = slot.have && out->age_ms <= MAX_AGE_MS[id];
