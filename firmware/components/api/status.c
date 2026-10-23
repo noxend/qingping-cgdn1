@@ -9,6 +9,7 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "auth.h"
+#include "battery.h"
 #include "button.h"
 #include "crash_log.h"
 #include "creds.h"
@@ -131,6 +132,10 @@ static void diag_report(char *buf, int *n, int cap, const net_stats_t *ns) {
             screen_manager_frames_reposted());
   bufappend(buf, n, cap, ",\"ap\":%s,\"off\":\"%s\"", net_ap_is_up() ? "true" : "false",
             system_last_off());
+  battery_t bat = battery_last();
+  bufappend(buf, n, cap, ",\"battery\":{\"mv\":%d,\"pct\":%d", bat.mv, bat.percent);
+  bufappend(buf, n, cap, ",\"usb\":%s,\"charging\":%s}", bat.usb ? "true" : "false",
+            bat.charging ? "true" : "false");
   button_counts_t btn;
   button_counts(&btn);
   bufappend(buf, n, cap, ",\"btn\":{\"armed\":%s,\"level\":%d,\"clicks\":%d,\"holds\":%d",
@@ -170,9 +175,9 @@ esp_err_t api_status_get(httpd_req_t *req) {
     json_escape(ssid, sizeof(ssid), (const char *) ns.ssid);
   }
   // Every append is bounded: the longest answer (a 32-byte SSID of control bytes, 6
-  // bytes each escaped, all seven stacks, the button counts, a crash with 8 frames, the
-  // watchdog and panic marks, 240 bytes of update notes, the address and a rolled back
-  // version) is about 2090 bytes and a truncated one is still a string.
+  // bytes each escaped, all seven stacks, the button counts, the battery, a crash with 8
+  // frames, the watchdog and panic marks, 240 bytes of update notes, the address and a
+  // rolled back version) is about 2150 bytes and a truncated one is still a string.
   web_manifest_t wm;
   const char *web_version = web_manifest_get(&wm) ? wm.version : "";
   bufappend(buf, &n, sizeof(buf), STATUS_FORMAT, run->label, joined ? "connected" : "not connected",
