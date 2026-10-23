@@ -189,7 +189,7 @@ manifest's size and sha256 and to its own version, and `esp_ota_end` checks the 
   it has one, the menu asks "Start hotspot?" and Yes brings the AP up for 10 minutes. With no network
   saved the screen shows the Wi-Fi setup page at boot and after 30 s of no touch in the menu.
   After a save from the setup page, the first join of the next boot shows "Connected" with
-  `cgdn1.local` and the IP for 5 minutes (30 s after a touch) or until a hold (`net_saved_before_boot`, a `.noinit` flag).
+  `cgdn1.local` and the IP for 5 minutes (30 s after a touch) or until a tap or a power button click (`net_saved_before_boot`, a `.noinit` flag).
 - **Captive portal**: the AP's DHCP offer names 10.47.0.1 as the DNS server and a raw lwIP UDP pcb
   (no socket, no task) answers every A question with that address (`net/dns_answer.c`). A setup AP
   client asking for another host, whatever the path, gets a 302 to
@@ -240,17 +240,22 @@ local network's traffic can take a session; the signature is what keeps a foreig
 
 ## On the device: menu, power button, night profile, temperature
 
-- **Touch strip**: a slide moves the carousel to the next screen; a hold opens the menu. In the
-  menu a slide to the right moves down the list, to the left up, and a hold selects. Rows: Info
-  (version, IP, SSID, uptime), Wi-Fi setup (a Wi-Fi QR code of the AP with its name; a slide shows name, password, address as text), Factory reset (asks No / Yes, reset), Back. The menu closes after 30 s without a touch. Its
-  strings are English (`components/ui/menu.c`).
+- **Touch strip**: a slide moves the carousel to the next screen. In the menu a slide to the right
+  moves down the list, to the left up, and a tap selects. A hold on the strip does nothing; it is
+  kept for later.
+- **Menu** (`components/ui/menu.c`, host test in `test/plugins/run.sh`): a 1 s hold on the power
+  button opens it, a click goes back one page and closes it from the list. Rows: Power off,
+  Restart, Wi-Fi setup (a Wi-Fi QR code of the AP with its name; a slide shows name, password,
+  address as text), Factory reset (asks No / Yes, reset), Info (version, IP, SSID, uptime, Back),
+  Back. The menu closes after 30 s without a touch. Its strings are English.
 - **Power button** (GPIO36, pulled low by the ATtiny814 while held): `button.c` polls the line,
   `button_press.c` decides (host test `test/button/run.sh`). A click blanks or wakes the panel and
-  the LED; a 2 s hold shows "Powering off" and powers the board off (on USB it stays dark until the
-  next 2 s hold restarts it); while an update is unconfirmed the hold is ignored, since a power cut
-  would roll it back. The panel shows "Starting" from `oled_init` until the first screen. `GET
-  /status` reports `btn` (armed, level, clicks, longs) and `off`, the reason the last power off
-  noted.
+  the LED, or goes back in the menu; a 1 s hold opens the menu; a 5 s hold shows "Powering off" and
+  powers the board off whatever the menu does (on USB it stays dark until the next hold restarts
+  it). The menu's Power off takes the same path on the main task. While an update is unconfirmed
+  power off is ignored, since a power cut would roll it back. The panel shows "Starting" from
+  `oled_init` until the first screen. `GET /status` reports `btn` (armed, level, clicks, holds,
+  longs) and `off`, the reason the last power off noted.
 - **Night profile**: one record in the core settings, read and written as `night` in `GET /config`
   and `POST /config` (off by default, 22:00 to 08:00, screen 30 %, indicator 20 %). Inside the
   window the panel's level table is scaled down or the panel goes dark, and the LED is scaled.
