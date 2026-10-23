@@ -396,6 +396,13 @@ static int restore_tick(void) {
     return -1;
   }
   const standard_t *standard = s_restore[--s_restore_n];
+  // Since the boot the user may have deleted it or installed another module under its
+  // id: only a plugin still listed failed is put back.
+  int i = plugins_find(standard->id);
+  plugin_info_t info;
+  if (i < 0 || !plugins_info(i, &info) || info.state != PLUGIN_FAILED) {
+    return -1;
+  }
   int changed = -1;
   const char *name;
   const char *why = install(standard->start, standard->end - standard->start, &name, &changed);

@@ -446,26 +446,26 @@ static void unreadable_standard(void) {
     wasm_host_tick();
   }
   root = plugins();
-  check(strcmp(state_of(root, "co2"), "failed") == 0, "and left alone while the board comes up");
+  check(strcmp(state_of(root, "co2"), "failed") == 0 &&
+            strcmp(state_of(root, "humidity"), "failed") == 0,
+        "and left alone while the board comes up");
   cJSON_Delete(root);
+  check(post_id("/plugins/remove", "humidity") == 202, "one of them is deleted meanwhile");
+  wasm_host_tick();  // the deletion
   wasm_host_tick();
   wasm_host_tick();
   root = plugins();
-  check(strcmp(state_of(root, "co2"), "ready") == 0 &&
-            strcmp(state_of(root, "humidity"), "ready") == 0,
-        "then the tick runs them from the image");
+  check(strcmp(state_of(root, "co2"), "ready") == 0, "then the tick runs the other from the image");
+  check(!installed(root, "humidity"), "and the deleted one stays deleted");
   cJSON_Delete(root);
   char value[8];
   settings_get("co2", "alarm", value, sizeof(value), "");
-  check(strcmp(value, "1") == 0, "and keep their settings");
+  check(strcmp(value, "1") == 0, "and it keeps its settings");
   uint8_t *code = NULL;
   uint32_t len = 0;
   bool co2 = store_read("co2", &code, &len, malloc, free) == STORE_OK;
   free(code);
-  code = NULL;
-  bool humidity = store_read("humidity", &code, &len, malloc, free) == STORE_OK;
-  free(code);
-  check(co2 && humidity, "and their modules read from flash again");
+  check(co2, "and its module reads from flash again");
 }
 
 static void nothing(void) {
