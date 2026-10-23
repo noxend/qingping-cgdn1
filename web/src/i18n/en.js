@@ -290,6 +290,7 @@ export const en = {
   "system.resetting": "Erasing. Set the device up again through its hotspot.",
   "system.address": "Address",
   "system.device": "Device",
+  "system.language": "Language",
   "system.signOut": "Sign out",
 
   "dev.title": "Developer",
