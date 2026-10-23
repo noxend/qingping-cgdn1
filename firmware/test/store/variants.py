@@ -8,21 +8,12 @@ import re
 import subprocess
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from wasm_section import without_section  # noqa: E402
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../plugins/sdk"))
+from wasm_section import encode_section, without_section  # noqa: E402
 
 plugins, work = sys.argv[1], sys.argv[2]
 os.chdir(work)
 code = open("clock.wasm", "rb").read()
-
-
-def write_leb(n):
-    out = bytearray()
-    while True:
-        byte, n = n & 0x7F, n >> 7
-        out.append(byte | (0x80 if n else 0))
-        if not n:
-            return bytes(out)
 
 
 # The module without its plugin.json section.
@@ -56,8 +47,8 @@ def embed(name, obj, hdr=header, base="bare.wasm"):
 
 
 def raw(name, text):
-    body = write_leb(len(b"cgdn1.plugin")) + b"cgdn1.plugin" + text.encode()
-    open(name, "wb").write(out + bytes([0]) + write_leb(len(body)) + body)
+    with open(name, "wb") as f:
+        f.write(out + encode_section(text.encode()))
 
 
 params = meta["params"]

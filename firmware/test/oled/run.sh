@@ -24,6 +24,6 @@ status=0
 "$BUILD/harness" || status=$?
 
 # PGM to PNG with the standard library only, so the frames open anywhere.
-python3 -I -B "$HERE/to_png.py" "$OUT"
+python3 -I -B "$FW/../plugins/preview/frames.py" "$OUT"
 echo "frames in $OUT"
 exit "$status"

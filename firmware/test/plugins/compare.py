@@ -1,49 +1,14 @@
 """The harness's frames, LED colours and alert stats against golden/, then every frame to
 PNG. Usage: compare.py <golden> <out> <harness output>"""
 
-import glob
 import json
 import os
-import struct
 import sys
-import zlib
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../plugins/preview"))
+from frames import convert, read_pgm, read_png  # noqa: E402
 
 golden, out, got_path = sys.argv[1:]
-
-
-def png(path, width, height, rows):
-    raw = b"".join(b"\x00" + r for r in rows)
-
-    def chunk(kind, data):
-        body = kind + data
-        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body))
-
-    header = struct.pack(">IIBBBBB", width, height, 8, 0, 0, 0, 0)
-    with open(path, "wb") as f:
-        f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header))
-        f.write(chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
-
-
-def png_pixels(path):
-    """The pixels of a PNG this script wrote: 8-bit grey, no filters."""
-    data = open(path, "rb").read()
-    at, idat, width = 8, b"", 0
-    while at < len(data):
-        n, kind = struct.unpack(">I4s", data[at : at + 8])
-        if kind == b"IHDR":
-            width = struct.unpack(">I", data[at + 8 : at + 12])[0]
-        if kind == b"IDAT":
-            idat += data[at + 8 : at + 8 + n]
-        at += 12 + n
-    raw = zlib.decompress(idat)
-    return b"".join(raw[k + 1 : k + 1 + width] for k in range(0, len(raw), width + 1))
-
-
-def pgm_pixels(path):
-    data = open(path, "rb").read()
-    header, pixels = data.split(b"255\n", 1)
-    width, height = (int(v) for v in header.split()[1:3])
-    return width, height, pixels
 
 
 want = {}
@@ -59,8 +24,8 @@ for line in open(got_path, encoding="utf-8"):
     name, led, *stats = line.rstrip("\n").split(" ", 2)
     seen += 1
     problems = []
-    width, height, pixels = pgm_pixels(os.path.join(out, name + ".pgm"))
-    expected = png_pixels(os.path.join(golden, name + ".png"))
+    width, height, pixels = read_pgm(os.path.join(out, name + ".pgm"))
+    expected = read_png(os.path.join(golden, name + ".png"))
     if pixels != expected:
         diff = sum(a != b for a, b in zip(pixels, expected))
         problems.append(f"{diff} pixels differ from golden/{name}.png")
@@ -76,11 +41,7 @@ for line in open(got_path, encoding="utf-8"):
     print(f"{name:18} {'ok' if not problems else 'FAIL: ' + '; '.join(problems)}")
     failed += bool(problems)
 
-for pgm in sorted(glob.glob(os.path.join(out, "*.pgm"))):
-    width, height, pixels = pgm_pixels(pgm)
-    rows = [pixels[y * width : (y + 1) * width] for y in range(height)]
-    png(pgm[:-4] + ".png", width, height, rows)
-    os.remove(pgm)
+convert(out)
 if seen != len(want):
     print(f"{seen} plugin cases ran, golden/ has {len(want)}")
     failed += 1
