@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include "json_escape.h"
 
 static void flush(json_out_t *o) {
   if (o->n > 0 && o->err == ESP_OK) {
@@ -44,15 +45,8 @@ void json_out_printf(json_out_t *o, const char *fmt, ...) {
 void json_out_str(json_out_t *o, const char *s) {
   json_out_raw(o, "\"", 1);
   for (const char *p = s; *p; p++) {
-    unsigned char c = (unsigned char) *p;
-    if (c == '"' || c == '\\') {
-      char esc[2] = {'\\', (char) c};
-      json_out_raw(o, esc, 2);
-    } else if (c < 0x20) {
-      json_out_printf(o, "\\u%04x", c);
-    } else {
-      json_out_raw(o, p, 1);
-    }
+    char one[JSON_ESCAPE_MAX];
+    json_out_raw(o, one, json_escape_byte((unsigned char) *p, one));
   }
   json_out_raw(o, "\"", 1);
 }
