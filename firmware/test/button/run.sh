@@ -1,5 +1,5 @@
 #!/bin/bash
-# Host check of the power button's click and long press decisions (button_press.c)
+# Host check of the power button's click, hold and long press decisions (button_press.c)
 # against presses sampled the way button.c samples GPIO36, every 50 ms.
 # Usage: firmware/test/button/run.sh [button_press.c]   (default: the one in the tree)
 set -euo pipefail

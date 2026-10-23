@@ -9,7 +9,7 @@ It reaches the browser two ways:
 
 - **Hosted**: the device serves a small shell that loads the bundle from
   `https://cgdn1.swithy.com/v/<version>/`, named by a manifest the device checks against its key.
-  `tools/publish_web.py` builds, signs and publishes it.
+  `tools/publish_web.mjs` builds, signs and publishes it.
 - **Built into the firmware**: one gzipped file, served when the hosted bundle cannot load.
 
 ## Build and embed
