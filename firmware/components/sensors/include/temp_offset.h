@@ -17,3 +17,8 @@ bool temp_offset_ok(int tenths);
 bool temp_offset_from_celsius(double celsius, int16_t *tenths);
 
 float temp_offset_apply(float measured, int16_t tenths);
+
+// The humidity the SHT4x measured at `measured` °C, recomputed for the corrected
+// temperature: the same amount of water vapour in air that is warmer or cooler by the
+// offset. 0 to 100 %RH.
+float temp_offset_humidity(float rh, float measured, int16_t tenths);

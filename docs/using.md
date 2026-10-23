@@ -71,7 +71,8 @@ on the network already uses the name, it becomes `cgdn1-2.local`.
 The first page asks for the device password you chose at setup. The browser stays signed in through
 restarts and updates until it has not opened the interface for 30 days. `cgdn1.local` and the IP
 address are separate sites to the browser, so each needs its own sign-in. The interface is in
-English and Ukrainian: switch with УКР / EN in the top right corner.
+English and Ukrainian: pick one under System, Device, Language, or with УКР / EN on the sign-in
+page.
 
 The interface loads its files from `https://cgdn1.swithy.com`. The device accepts only a list of
 those files signed with the project's key, and the browser checks every file against it. Without
@@ -111,7 +112,8 @@ Night mode: on or off, the schedule, dim or turn off the screen, and the two bri
 - **Memory for plugins**: how much plugin storage and working memory is used and free.
 - **Temperature**: a correction of -3.0 to +3.0 °C added to the measured temperature, for a device
   that reads warmer or cooler than a thermometer you trust. The panel, the plugins and the web
-  interface all show the corrected value; humidity is shown as measured.
+  interface all show the corrected value. Humidity is recalculated for the corrected temperature,
+  since air that reads warmer than it is also reads drier.
 
 ![The System page](images/web/system.png)
 

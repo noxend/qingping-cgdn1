@@ -2,6 +2,7 @@ import { ArrowRightFromSquare } from "@gravity-ui/icons";
 import { Button } from "@heroui/react";
 
 import { AddressLinks } from "./AddressLinks";
+import { LanguageField } from "./LanguageField";
 import { PowerAction } from "./PowerAction";
 import { InfoList, InfoRow } from "../../components/InfoRow";
 import { TitledCard } from "../../components/TitledCard";
@@ -47,14 +48,18 @@ export function DeviceCard({ status }) {
 
   return (
     <TitledCard title={t("system.device")} footer={footer}>
-      <InfoList>
-        {connected && status.host && (
-          <InfoRow label={t("system.address")}>
-            <AddressLinks status={status} />
-          </InfoRow>
-        )}
-        <InfoRow label={t("system.firmware")}>{status ? status.fw : "…"}</InfoRow>
-      </InfoList>
+      <div className="flex flex-col gap-4">
+        <InfoList>
+          {connected && status.host && (
+            <InfoRow label={t("system.address")}>
+              <AddressLinks status={status} />
+            </InfoRow>
+          )}
+          <InfoRow label={t("system.firmware")}>{status ? status.fw : "…"}</InfoRow>
+        </InfoList>
+
+        <LanguageField />
+      </div>
     </TitledCard>
   );
 }
