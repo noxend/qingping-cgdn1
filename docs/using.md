@@ -71,7 +71,8 @@ on the network already uses the name, it becomes `cgdn1-2.local`.
 The first page asks for the device password you chose at setup. The browser stays signed in through
 restarts and updates until it has not opened the interface for 30 days. `cgdn1.local` and the IP
 address are separate sites to the browser, so each needs its own sign-in. The interface is in
-English and Ukrainian: switch with УКР / EN in the top right corner.
+English and Ukrainian: pick one under System, Device, Language, or with УКР / EN on the sign-in
+page.
 
 The interface loads its files from `https://cgdn1.swithy.com`. The device accepts only a list of
 those files signed with the project's key, and the browser checks every file against it. Without

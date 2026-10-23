@@ -294,6 +294,7 @@ export const uk = {
   "system.resetting": "Стирання. Налаштуйте пристрій знову через його точку налаштування.",
   "system.address": "Адреса",
   "system.device": "Пристрій",
+  "system.language": "Мова",
   "system.signOut": "Вийти",
 
   "dev.title": "Розробка",
