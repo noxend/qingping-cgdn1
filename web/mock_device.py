@@ -45,6 +45,22 @@ SDK = 2
 PARTITION = 196608
 RESERVE = 3 * 126 * 32
 PSRAM_TOTAL = 4 * 1024 * 1024
+# The keys of the firmware's time zones (time_zone.c).
+TIME_ZONES = (
+    "kyiv",
+    "helsinki",
+    "warsaw",
+    "london",
+    "istanbul",
+    "utc",
+    "dubai",
+    "tokyo",
+    "sydney",
+    "new_york",
+    "chicago",
+    "denver",
+    "los_angeles",
+)
 STANDARD = ["alerts", "clock", "humidity", "temperature", "co2", "pm25", "pm10"]
 
 
@@ -133,6 +149,7 @@ class Device:
         self.enabled = ["clock", "alerts", "co2"]
         self.active = "clock"
         self.temp_offset = 0.0
+        self.time_zone = "kyiv"
         # id -> {"manifest", "size", "values"}, in install order (the table's).
         self.installed = {
             pid: {"manifest": meta, "size": len(code), "values": {}}
@@ -313,6 +330,7 @@ class Handler(BaseHTTPRequestHandler):
                         "enabled": [i for i in d.enabled if i in d.installed],
                         "night": {"enabled": False},
                         "temp_offset": d.temp_offset,
+                        "time_zone": d.time_zone,
                     },
                 )
             if path == "/sensors":
@@ -438,6 +456,10 @@ class Handler(BaseHTTPRequestHandler):
                     if tenths is None or abs(tenths) > 30 or abs(offset * 10 - tenths) > 1e-6:
                         return self.reply(400, {"error": "bad temp_offset"})
                     d.temp_offset = tenths / 10
+                if "time_zone" in body:
+                    if body["time_zone"] not in TIME_ZONES:
+                        return self.reply(400, {"error": "bad time_zone"})
+                    d.time_zone = body["time_zone"]
                 if body.get("screen") in d.installed:
                     d.installed[body["screen"]]["values"].update(body.get("values", {}))
             return self.reply(200, b"saved\n", "text/plain")

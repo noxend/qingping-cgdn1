@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { parseTime } from "@internationalized/date";
+
+import { useDeviceZone, useNow } from "../../lib/timeZones";
 
 // "HH:MM" from the device to a Time for the field, or null.
 export function toTime(text) {
@@ -39,30 +41,22 @@ export function inWindow(start, end, now) {
   return now >= start || now < end;
 }
 
-// The device keeps one time zone, Kyiv (TZ_KYIV in net.c), and /status carries no
-// clock, so the device's minute is the browser's clock read in that zone.
-// "Europe/Kiev" is the older name, which every browser's zone data still resolves.
-const DEVICE_CLOCK = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Europe/Kiev",
-  hour: "numeric",
-  minute: "numeric",
-  hourCycle: "h23",
-});
-
-function deviceMinute() {
-  const parts = DEVICE_CLOCK.formatToParts(new Date());
-  const part = (type) => Number(parts.find((p) => p.type === type).value);
-  return part("hour") * 60 + part("minute");
-}
-
 // The minute of the day on the device, kept current while the page is open.
 export function useDeviceMinute() {
-  const [minute, setMinute] = useState(deviceMinute);
+  const zone = useDeviceZone();
+  const now = useNow();
 
-  useEffect(() => {
-    const timer = setInterval(() => setMinute(deviceMinute()), 10000);
-    return () => clearInterval(timer);
-  }, []);
-
-  return minute;
+  const clock = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: zone.iana,
+        hour: "numeric",
+        minute: "numeric",
+        hourCycle: "h23",
+      }),
+    [zone],
+  );
+  const parts = clock.formatToParts(now);
+  const part = (type) => Number(parts.find((p) => p.type === type).value);
+  return part("hour") * 60 + part("minute");
 }

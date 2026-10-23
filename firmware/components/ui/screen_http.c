@@ -10,12 +10,14 @@
 #include "esp_log.h"
 #include "json_out.h"
 #include "manifest.h"
+#include "net.h"
 #include "night.h"
 #include "nvs.h"
 #include "oled.h"
 #include "sensors.h"
 #include "settings.h"
 #include "temp_offset.h"
+#include "time_zone.h"
 #include "util.h"
 #include "wasm_host.h"
 #include "wasm_plugins.h"
@@ -89,7 +91,8 @@ static bool missing_json(const char *id, const char *text, int len, void *ctx) {
   return true;
 }
 
-// GET /config: {"catalog":[...],"enabled":[id,...],"night":{...},"temp_offset":°C},
+// GET /config: {"catalog":[...],"enabled":[id,...],"night":{...},"temp_offset":°C,
+// "time_zone":key},
 // sent as it is written, one plugin at a time, so it has no size of its own.
 static esp_err_t config_get(httpd_req_t *req) {
   catalog_t c = {.first = true};
@@ -124,7 +127,10 @@ static esp_err_t config_get(httpd_req_t *req) {
   cJSON_Delete(night);
   json_out_raw(out, text ? text : "null", text ? strlen(text) : 4);
   cJSON_free(text);
-  json_out_printf(out, ",\"temp_offset\":%.1f}", sensors_temp_offset() / 10.0);
+  json_out_printf(out, ",\"temp_offset\":%.1f", sensors_temp_offset() / 10.0);
+  json_out_raw(out, ",\"time_zone\":", 13);
+  json_out_str(out, net_time_zone());
+  json_out_raw(out, "}", 1);
   return json_out_end(out);
 }
 
@@ -226,6 +232,18 @@ static esp_err_t post_temp_offset(httpd_req_t *req, cJSON *offset) {
   return ESP_OK;
 }
 
+// {"time_zone":key} switches the clock to that zone; the panel follows on its next redraw.
+static esp_err_t post_time_zone(httpd_req_t *req, cJSON *zone) {
+  if (!cJSON_IsString(zone) || !time_zone_posix(zone->valuestring)) {
+    return http_error(req, HTTPD_400_BAD_REQUEST, "bad time_zone");
+  }
+  if (!net_set_time_zone(zone->valuestring)) {
+    return http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "store failed");
+  }
+  httpd_resp_sendstr(req, "saved\n");
+  return ESP_OK;
+}
+
 // {"active":"<id>"} shows that screen now and remembers the choice.
 static esp_err_t post_active(httpd_req_t *req, const char *id) {
   int idx = screen_index(id);
@@ -291,6 +309,10 @@ static esp_err_t config_apply(httpd_req_t *req, cJSON *root) {
   cJSON *offset = cJSON_GetObjectItem(root, "temp_offset");
   if (offset) {
     return post_temp_offset(req, offset);
+  }
+  cJSON *zone = cJSON_GetObjectItem(root, "time_zone");
+  if (zone) {
+    return post_time_zone(req, zone);
   }
   cJSON *active = cJSON_GetObjectItem(root, "active");
   if (cJSON_IsString(active)) {
