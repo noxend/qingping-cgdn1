@@ -138,11 +138,11 @@ export function UpdateCard({ status }) {
 
   const known = status !== undefined;
   const summary = status?.update
-    ? t("system.updateAvailable")
+    ? t("system.updateAvailable", { version: status.fw })
     : t("system.upToDate", { version: status?.fw });
 
   return (
-    <TitledCard title={t("system.update")} description={known && summary}>
+    <TitledCard title={t("system.firmware")} description={known && summary}>
       <div className="flex flex-col gap-4">
         {status?.rolled_back && (
           <Notice

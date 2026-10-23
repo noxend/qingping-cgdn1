@@ -1,64 +1,50 @@
 import { ArrowRightFromSquare } from "@gravity-ui/icons";
 import { Button } from "@heroui/react";
 
-import { AddressLinks } from "./AddressLinks";
-import { LanguageField } from "./LanguageField";
 import { PowerAction } from "./PowerAction";
-import { InfoList, InfoRow } from "../../components/InfoRow";
 import { TitledCard } from "../../components/TitledCard";
 import { signOut } from "../../lib/api";
 import { useT } from "../../i18n";
 
+// What is done to the device as a whole, the factory reset last.
 export function DeviceCard({ status }) {
   const t = useT();
 
-  const connected = status?.wifi === "connected";
   // "host" came with /reboot and /reset (1.0.0); the hosted page also reaches older firmware.
   const canRestart = status !== undefined && "host" in status;
 
-  const footer = (
-    <div className="flex w-full flex-col gap-3">
-      {canRestart && (
-        <div className="flex w-full flex-wrap gap-3">
-          <PowerAction
-            path="/reboot"
-            label={t("system.restart")}
-            title={t("system.restartTitle")}
-            text={t("system.restartText")}
-            done={t("system.restarting")}
-            variant="secondary"
-          />
-          <PowerAction
-            path="/reset"
-            label={t("system.reset")}
-            title={t("system.resetTitle")}
-            text={t("system.resetText")}
-            done={t("system.resetting")}
-            variant="danger-soft"
-          />
-        </div>
-      )}
-
-      <Button fullWidth variant="secondary" onPress={signOut}>
-        <ArrowRightFromSquare />
-        {t("system.signOut")}
-      </Button>
-    </div>
-  );
-
   return (
-    <TitledCard title={t("system.device")} footer={footer}>
-      <div className="flex flex-col gap-4">
-        <InfoList>
-          {connected && status.host && (
-            <InfoRow label={t("system.address")}>
-              <AddressLinks status={status} />
-            </InfoRow>
+    <TitledCard title={t("system.device")}>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap gap-3">
+          {canRestart && (
+            <PowerAction
+              path="/reboot"
+              label={t("system.restart")}
+              title={t("system.restartTitle")}
+              text={t("system.restartText")}
+              done={t("system.restarting")}
+              variant="secondary"
+            />
           )}
-          <InfoRow label={t("system.firmware")}>{status ? status.fw : "…"}</InfoRow>
-        </InfoList>
+          <Button className="min-w-fit flex-1" variant="secondary" onPress={signOut}>
+            <ArrowRightFromSquare />
+            {t("system.signOut")}
+          </Button>
+        </div>
 
-        <LanguageField />
+        {canRestart && (
+          <div className="flex">
+            <PowerAction
+              path="/reset"
+              label={t("system.reset")}
+              title={t("system.resetTitle")}
+              text={t("system.resetText")}
+              done={t("system.resetting")}
+              variant="danger-soft"
+            />
+          </div>
+        )}
       </div>
     </TitledCard>
   );

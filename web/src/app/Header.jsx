@@ -1,5 +1,5 @@
-import { ArrowUpFromLine, Bars } from "@gravity-ui/icons";
-import { Button, Chip, Link, SearchField } from "@heroui/react";
+import { Bars, Magnifier } from "@gravity-ui/icons";
+import { Badge, Button, CloseButton, InputGroup, Kbd, TextField } from "@heroui/react";
 
 import { useT } from "../i18n";
 
@@ -8,22 +8,29 @@ const HEADER_CLASS = [
   "border-b border-separator bg-background/80 backdrop-blur",
 ].join(" ");
 
-function UpdateChip({ version }) {
+const MAC = /Mac|iPhone|iPad/.test(navigator.userAgent);
+
+// HeroUI's InputGroup "With keyboard shortcut": the shortcut from SignedIn.jsx while the
+// field is empty and the screen is wide enough to have a keyboard, a clear button once
+// there is a query.
+function SearchSuffix({ query, onSearch }) {
   const t = useT();
 
+  if (query) {
+    return (
+      <InputGroup.Suffix className="pe-2">
+        <CloseButton aria-label={t("header.clear")} onPress={() => onSearch("")} />
+      </InputGroup.Suffix>
+    );
+  }
+
   return (
-    <Link
-      href="#/system"
-      className="shrink-0 no-underline"
-      aria-label={t("header.update", { version })}
-    >
-      <Chip color="accent" size="sm" variant="soft">
-        <ArrowUpFromLine width={12} />
-        <Chip.Label>
-          <span className="hidden sm:inline">{t("header.updateShort")} </span>v{version}
-        </Chip.Label>
-      </Chip>
-    </Link>
+    <InputGroup.Suffix className="hidden pe-2 sm:flex">
+      <Kbd>
+        {MAC ? <Kbd.Abbr keyValue="command" /> : <Kbd.Content>Ctrl</Kbd.Content>}
+        <Kbd.Content>K</Kbd.Content>
+      </Kbd>
+    </InputGroup.Suffix>
   );
 }
 
@@ -32,34 +39,31 @@ export function Header({ query, onSearch, onMenu, searchRef, update }) {
 
   return (
     <header className={HEADER_CLASS}>
-      <Button
-        isIconOnly
-        variant="ghost"
-        className="lg:hidden"
-        aria-label={t("header.menu")}
-        onPress={onMenu}
-      >
-        <Bars />
-      </Button>
+      <Badge.Anchor className="lg:hidden">
+        <Button isIconOnly variant="ghost" aria-label={t("header.menu")} onPress={onMenu}>
+          <Bars />
+        </Button>
+        {update && <Badge color="danger" size="sm" />}
+      </Badge.Anchor>
 
-      <SearchField
+      <TextField
         aria-label={t("header.search")}
         className="w-full min-w-0 max-w-md"
         value={query}
         onChange={onSearch}
       >
-        <SearchField.Group>
-          <SearchField.SearchIcon />
-          <SearchField.Input ref={searchRef} placeholder={t("header.searchPlaceholder")} />
-          <SearchField.ClearButton />
-        </SearchField.Group>
-      </SearchField>
-
-      {update && (
-        <div className="ms-auto shrink-0">
-          <UpdateChip version={update.version} />
-        </div>
-      )}
+        <InputGroup>
+          <InputGroup.Prefix>
+            <Magnifier className="size-4 text-muted" />
+          </InputGroup.Prefix>
+          <InputGroup.Input
+            ref={searchRef}
+            className="w-full"
+            placeholder={t("header.searchPlaceholder")}
+          />
+          <SearchSuffix query={query} onSearch={onSearch} />
+        </InputGroup>
+      </TextField>
     </header>
   );
 }

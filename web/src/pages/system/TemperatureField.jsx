@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Button, Description, Form, Label, NumberField } from "@heroui/react";
 
-import { TitledCard } from "../../components/TitledCard";
 import { postJson, useConfig, useSensors } from "../../lib/api";
 import { notify } from "../../lib/notify";
 import { LOCALES, useLang } from "../../i18n";
@@ -19,7 +18,7 @@ const CELSIUS = {
 
 // The temperature calibration: an offset the device adds to every reading. Hidden on a
 // firmware whose /config does not report one.
-export function TemperatureCard() {
+export function TemperatureField() {
   const { t, lang } = useLang();
 
   const { data: config, mutate: updateConfig } = useConfig();
@@ -62,37 +61,35 @@ export function TemperatureCard() {
   };
 
   return (
-    <TitledCard title={t("system.temperature")}>
-      <Form className="flex flex-col gap-6" onSubmit={onSubmit}>
-        <NumberField
-          fullWidth
-          formatOptions={{ ...CELSIUS, signDisplay: "exceptZero" }}
-          maxValue={LIMIT}
-          minValue={-LIMIT}
-          step={STEP}
-          value={offset}
-          variant="secondary"
-          onChange={setEdit}
-        >
-          <Label>{t("system.tempOffset")}</Label>
-          <NumberField.Group>
-            <NumberField.DecrementButton />
-            <NumberField.Input />
-            <NumberField.IncrementButton />
-          </NumberField.Group>
-          {now && <Description>{t("system.tempNow", { value: now })}</Description>}
-        </NumberField>
+    <Form className="flex flex-col gap-3" onSubmit={onSubmit}>
+      <NumberField
+        fullWidth
+        formatOptions={{ ...CELSIUS, signDisplay: "exceptZero" }}
+        maxValue={LIMIT}
+        minValue={-LIMIT}
+        step={STEP}
+        value={offset}
+        variant="secondary"
+        onChange={setEdit}
+      >
+        <Label>{t("system.tempOffset")}</Label>
+        <NumberField.Group>
+          <NumberField.DecrementButton />
+          <NumberField.Input />
+          <NumberField.IncrementButton />
+        </NumberField.Group>
+        {now && <Description>{t("system.tempNow", { value: now })}</Description>}
+      </NumberField>
 
-        <Button
-          fullWidth
-          isDisabled={Number.isNaN(offset)}
-          isPending={saving}
-          type="submit"
-          variant="primary"
-        >
-          {t("system.tempSave")}
-        </Button>
-      </Form>
-    </TitledCard>
+      <Button
+        fullWidth
+        isDisabled={Number.isNaN(offset)}
+        isPending={saving}
+        type="submit"
+        variant="secondary"
+      >
+        {t("system.tempSave")}
+      </Button>
+    </Form>
   );
 }

@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 
 import { SelectField } from "../../components/SelectField";
-import { TitledCard } from "../../components/TitledCard";
 import { postJson, useConfig } from "../../lib/api";
 import { notify } from "../../lib/notify";
 import { TIME_ZONES, useDeviceZone, useNow } from "../../lib/timeZones";
@@ -9,7 +8,7 @@ import { LOCALES, useLang } from "../../i18n";
 
 // The device's time zone, saved as soon as another is picked. Hidden on a firmware
 // whose /config does not report one.
-export function TimeZoneCard() {
+export function TimeZoneField() {
   const { t, lang } = useLang();
 
   const { data: config, mutate: updateConfig } = useConfig();
@@ -58,15 +57,13 @@ export function TimeZoneCard() {
   };
 
   return (
-    <TitledCard title={t("system.time")}>
-      <SelectField
-        label={t("system.timeZone")}
-        description={t("system.timeNow", { time })}
-        isDisabled={saving}
-        options={options}
-        value={zone.key}
-        onChange={onChange}
-      />
-    </TitledCard>
+    <SelectField
+      label={t("system.timeZone")}
+      description={t("system.timeNow", { time })}
+      isDisabled={saving}
+      options={options}
+      value={zone.key}
+      onChange={onChange}
+    />
   );
 }

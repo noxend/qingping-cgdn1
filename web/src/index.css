@@ -14,8 +14,8 @@
 
 /* The interface is monochrome: black, grey and white, colour comes only from
    live data (alert levels). The accent is the foreground inverted, so primary
-   buttons read as near-black on light and near-white on dark. Inputs get a
-   border so they stand off the card they sit on. */
+   buttons read as near-black on light and near-white on dark. HeroUI derives every
+   corner from --radius: cards, overlays and buttons 3x (12 px), list items 2x. */
 :root,
 [data-theme="light"] {
   --sidebar: oklch(0.9711 0 0);
@@ -23,8 +23,8 @@
   --accent-foreground: oklch(0.9851 0 0);
   --focus: oklch(0.5486 0 0);
   --muted: oklch(0.52 0 0); /* 5:1 on the page, over the 4.5 small text needs */
-  --radius: 0.625rem;
-  --field-border-width: 1px;
+  --radius: 0.25rem;
+  --field-radius: calc(var(--radius) * 3);
 }
 
 .dark,
@@ -41,31 +41,15 @@
   --accent: oklch(0.9491 0 0);
   --accent-foreground: oklch(0.1448 0 0);
   --focus: oklch(0.7044 0 0);
-  --radius: 0.625rem;
 
-  --field-background: oklch(0.2726 0 0);
-  --field-border: oklch(0.3621 0 0);
-  --field-border-width: 1px;
+  /* As in HeroUI's dark theme: a field is on the surface level, a key or chip (default)
+     one step above it. */
+  --field-background: var(--surface);
   --field-placeholder: oklch(0.5916 0 0);
 }
 
 body {
   -webkit-font-smoothing: antialiased;
-}
-
-/* Radius follows depth: cards 14 px, the controls inside them 10 px, chips stay round. */
-@layer components {
-  .card {
-    border-radius: 0.875rem;
-  }
-
-  .button {
-    border-radius: var(--radius);
-  }
-}
-
-:root {
-  --field-radius: var(--radius);
 }
 
 /* Tabular figures so live counts do not jitter as they change. */

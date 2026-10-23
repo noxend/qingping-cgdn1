@@ -1,4 +1,4 @@
-import { Button, Card } from "@heroui/react";
+import { Button, Card, EmptyState } from "@heroui/react";
 import { navigate } from "wouter/use-hash-location";
 
 import { Banner } from "./Banner";
@@ -64,16 +64,18 @@ function NothingOnScreens({ store }) {
   const t = useT();
 
   return (
-    <Card className="text-center">
-      <Card.Content className="py-6">
-        <DeviceScreen className="mx-auto mb-5 w-36" />
-        <p className="text-muted">{t("home.empty")}</p>
-        <div className="mt-4 flex flex-wrap justify-center gap-3">
-          <Button variant="secondary" onPress={() => navigate("/store")}>
-            {t("home.goStore")}
-          </Button>
-          <UploadPlugin store={store} />
-        </div>
+    <Card>
+      <Card.Content>
+        <EmptyState className="py-6 text-center">
+          <DeviceScreen className="mx-auto mb-5 w-36" />
+          <p>{t("home.empty")}</p>
+          <div className="mt-4 flex flex-wrap justify-center gap-3">
+            <Button variant="secondary" onPress={() => navigate("/store")}>
+              {t("home.goStore")}
+            </Button>
+            <UploadPlugin store={store} />
+          </div>
+        </EmptyState>
       </Card.Content>
     </Card>
   );
