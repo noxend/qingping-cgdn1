@@ -13,7 +13,9 @@
 #include "night.h"
 #include "nvs.h"
 #include "oled.h"
+#include "sensors.h"
 #include "settings.h"
+#include "temp_offset.h"
 #include "util.h"
 #include "wasm_host.h"
 #include "wasm_plugins.h"
@@ -87,8 +89,8 @@ static bool missing_json(const char *id, const char *text, int len, void *ctx) {
   return true;
 }
 
-// GET /config: {"catalog":[...],"enabled":[id,...],"night":{...}}, sent as it is
-// written, one plugin at a time, so it has no size of its own.
+// GET /config: {"catalog":[...],"enabled":[id,...],"night":{...},"temp_offset":°C},
+// sent as it is written, one plugin at a time, so it has no size of its own.
 static esp_err_t config_get(httpd_req_t *req) {
   catalog_t c = {.first = true};
   json_out_t *out = &c.o;
@@ -122,7 +124,7 @@ static esp_err_t config_get(httpd_req_t *req) {
   cJSON_Delete(night);
   json_out_raw(out, text ? text : "null", text ? strlen(text) : 4);
   cJSON_free(text);
-  json_out_raw(out, "}", 1);
+  json_out_printf(out, ",\"temp_offset\":%.1f}", sensors_temp_offset() / 10.0);
   return json_out_end(out);
 }
 
@@ -216,6 +218,24 @@ static esp_err_t config_post(httpd_req_t *req) {
     }
     cJSON_Delete(root);
     if (!night_store(&profile)) {
+      http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "store failed");
+      return ESP_FAIL;
+    }
+    httpd_resp_sendstr(req, "saved\n");
+    return ESP_OK;
+  }
+
+  // {"temp_offset":°C} sets the temperature calibration; the next reading has it.
+  cJSON *offset = cJSON_GetObjectItem(root, "temp_offset");
+  if (offset) {
+    int16_t tenths = 0;
+    bool ok = cJSON_IsNumber(offset) && temp_offset_from_celsius(offset->valuedouble, &tenths);
+    cJSON_Delete(root);
+    if (!ok) {
+      http_error(req, HTTPD_400_BAD_REQUEST, "bad temp_offset");
+      return ESP_FAIL;
+    }
+    if (!sensors_set_temp_offset(tenths)) {
       http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "store failed");
       return ESP_FAIL;
     }
