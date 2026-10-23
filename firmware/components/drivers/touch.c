@@ -11,10 +11,10 @@
 
 static const char *TAG = "touch";
 
-// Continuously reads the touch MCU at I2C1 0x0c (2 bytes) and GPIO32 (ready)
-// and logs every change with a timestamp into a ring buffer that GET /touch
-// dumps. The finger stream (down, move, up) and the hold go to the two callbacks
-// touch_start was given.
+// Reads the touch MCU at I2C1 0x0c (2 bytes) while a finger is on the strip, and
+// logs every change with a timestamp into a ring buffer that GET /touch dumps. The
+// finger stream (down, move, up) and the hold go to the two callbacks touch_start
+// was given.
 #define TOUCH_ADDR 0x0c
 #define TOUCH_READ_TIMEOUT_MS 50
 #define TOUCH_RDY_GPIO 32
@@ -41,8 +41,9 @@ static touch_hold_fn s_on_hold;
 
 // Turns the samples into the finger stream for the core: DOWN at the first touch,
 // MOVE whenever the position changes, UP on release. A finger that stays down for
-// TOUCH_HOLD_MS without travelling is a hold, reported once while it is down.
-static void touch_step(uint8_t pos, uint8_t status, uint32_t now_ms) {
+// TOUCH_HOLD_MS without travelling is a hold, reported once while it is down. Returns
+// whether the finger is down after this sample.
+static bool touch_step(uint8_t pos, uint8_t status, uint32_t now_ms) {
   static bool down;
   static uint32_t down_at;
   static uint8_t start_pos;
@@ -74,6 +75,7 @@ static void touch_step(uint8_t pos, uint8_t status, uint32_t now_ms) {
     s_on_finger(TOUCH_PHASE_UP, last_pos);
   }
   down = is_down;
+  return down;
 }
 
 static void touch_reader(void *arg) {
@@ -119,23 +121,41 @@ static void touch_reader(void *arg) {
   gpio_config(&io);
 
   touch_bus_t pace = {0};
+  bool finger = false;
   int last0 = -1, last1 = -1, lastr = -1;
   int64_t t0 = esp_timer_get_time();
   esp_task_wdt_add(NULL);
   while (true) {
     esp_task_wdt_reset();
+    // The strip holds GPIO32 low while a finger is on it, and is read only then and
+    // until a read shows the release, as the stock firmware does. An idle strip may
+    // leave its address unanswered for minutes.
+    int rdy = gpio_get_level(TOUCH_RDY_GPIO);
+    if (rdy != 0 && !finger) {
+      // The next touch starts at the full read rate, whatever the last one met.
+      pace.failures = 0;
+      pace.pause_ms = TOUCH_PERIOD_MS;
+      vTaskDelay(pdMS_TO_TICKS(TOUCH_PERIOD_MS));
+      continue;
+    }
     uint8_t buf[2] = {0, 0};
     esp_err_t e = i2c_master_receive(dev, buf, 2, TOUCH_READ_TIMEOUT_MS);
-    int rdy = gpio_get_level(TOUCH_RDY_GPIO);
     uint32_t now_ms = (uint32_t) ((esp_timer_get_time() - t0) / 1000);
+    if (e != ESP_OK && rdy != 0) {
+      // GPIO32 already says the finger is gone, and the strip may not answer once
+      // idle: the release is taken from the line.
+      finger = touch_step(0, 0, now_ms);
+      vTaskDelay(pdMS_TO_TICKS(TOUCH_PERIOD_MS));
+      continue;
+    }
     touch_bus_next_t next = touch_bus_step(&pace, e == ESP_OK, now_ms);
     if (next.recovered) {
       ESP_LOGW(TAG, "touch: answering again (%lu more reads unanswered since the last line)",
                (unsigned long) next.failed);
     }
     if (e != ESP_OK) {
-      // The strip answers every read; a long silence is a stuck bus, which only a
-      // reset (SCL clocked out) frees.
+      // With a finger on it the strip answers every read; a long silence is a stuck
+      // bus, which only a reset (SCL clocked out) frees.
       esp_err_t reset = next.reset_bus ? i2c_master_bus_reset(bus) : ESP_OK;
       if (next.log) {
         ESP_LOGW(TAG, "touch: %lu reads unanswered (%s), next in %lu ms%s",
@@ -152,7 +172,7 @@ static void touch_reader(void *arg) {
       buf[1] = t;
       s_shifted++;
     }
-    touch_step(buf[0], buf[1], now_ms);
+    finger = touch_step(buf[0], buf[1], now_ms);
     if (buf[0] != last0 || buf[1] != last1 || rdy != lastr) {
       int i = s_thead;
       s_tlog[i].ms = now_ms;
