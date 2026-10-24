@@ -7,6 +7,7 @@ static const char *TAG = "sensor_bus";
 #define BUS_PORT 0
 #define BUS_SDA 26
 #define BUS_SCL 27
+#define BUS_HZ 20000
 
 static i2c_master_bus_handle_t bus_get(void) {
   static i2c_master_bus_handle_t bus;
@@ -45,7 +46,7 @@ i2c_master_dev_handle_t sensor_bus_add(uint8_t addr) {
   i2c_device_config_t dc = {
       .dev_addr_length = I2C_ADDR_BIT_LEN_7,
       .device_address = addr,
-      .scl_speed_hz = 100000,
+      .scl_speed_hz = BUS_HZ,
   };
   i2c_master_dev_handle_t dev = NULL;
   esp_err_t e = i2c_master_bus_add_device(bus, &dc, &dev);

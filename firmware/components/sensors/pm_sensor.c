@@ -32,6 +32,7 @@ void pm_sensor_power_off(void) {
 
 bool pm_sensor_init(void) {
   if (s_dev == NULL) {
+    esp_log_level_set(TAG, ESP_LOG_INFO);  // main.c sets the rest to warnings only
     power_on();
     s_dev = sensor_bus_add(PM_ADDR);
   }
@@ -53,8 +54,8 @@ bool pm_sensor_read(uint16_t *pm25, uint16_t *pm10) {
   }
   if (!pm_frame_parse(frame, &f)) {
     if (!refusal_logged) {
-      ESP_LOGW(TAG, "a frame failed its header or checksum check");
-      ESP_LOG_BUFFER_HEX(TAG, frame, sizeof(frame));
+      ESP_LOGW(TAG, "a frame failed its header or checksum check:");
+      ESP_LOG_BUFFER_HEX_LEVEL(TAG, frame, sizeof(frame), ESP_LOG_WARN);
       refusal_logged = true;
     }
     return false;
