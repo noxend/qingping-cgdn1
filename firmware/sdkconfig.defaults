@@ -16,7 +16,9 @@ CONFIG_ESP_TASK_WDT_PANIC=y
 CONFIG_SPI_FLASH_YIELD_DURING_ERASE=y
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
-CONFIG_LWIP_MAX_SOCKETS=10
+# The web server takes its max_open_sockets (7) plus 3 of its own; 16 leaves 6 for the
+# device's own requests (plugins, update checks, OTA, time) however many browsers are open.
+CONFIG_LWIP_MAX_SOCKETS=16
 # This unit's eFuse stores a mismatched MAC CRC (Qingping custom programming),
 # which makes generic ESP-IDF abort in PHY init. Accept the device's real MAC
 # despite the bad CRC fuse instead of refusing it.
