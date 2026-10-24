@@ -261,6 +261,11 @@ local network's traffic can take a session; the signature is what keeps a foreig
   and `POST /config` (off by default, 22:00 to 08:00, screen 30 %, indicator 20 %). Inside the
   window the panel's level table is scaled down or the panel goes dark, and the LED is scaled.
   The Display page of the web interface edits it.
+- **Panel type**: the factory record at flash 0x3D2000 (MAC, serial, `lcd_id`) is read at boot
+  before `nvs_cfg`, which reuses that flash, is mounted, and a copy is kept on the default `nvs`
+  partition (`system/factory_record.c`, host test `test/factory_record/run.sh` on a unit's own
+  dumps). `lcd_id` 1 or no record drives panel A, anything else panel B
+  (docs/hardware.md, Display). `GET /status` reports `serial`, `lcd_id` and `panel`.
 - **Temperature correction**: an offset of -3.0 to +3.0 °C in steps of 0.1 (`temp_offset.c`, host
   test `test/temp_offset/run.sh`), one record in the core settings, read and written as
   `temp_offset` in `GET /config` and `POST /config` (0 by default). `sensor_get` adds it to every
