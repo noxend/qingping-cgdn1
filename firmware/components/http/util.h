@@ -24,6 +24,12 @@ bool recv_exact(httpd_req_t *req, char *buf, int len);
 
 // Answers the request with an HTTP error and a JSON body {"error":"<msg>"}, so a
 // client can always parse an answer (part of the API contract, see API_VERSION).
+// A handler ends with `return http_error(...)`. For a body of at most HTTP_DRAIN_MAX
+// bytes that is ESP_OK once the answer is sent: the server reads off what is left of the
+// body and keeps the connection, where closing it on unread data would make lwIP reset
+// it and could lose the answer. A larger body (an upload) closes the connection, so a
+// client cannot keep the one server task reading a body it only claims to send.
+#define HTTP_DRAIN_MAX 4096
 esp_err_t http_error(httpd_req_t *req, httpd_err_code_t code, const char *msg);
 
 // Registers a handler behind the Host check (auth_host_ok) and sign-in

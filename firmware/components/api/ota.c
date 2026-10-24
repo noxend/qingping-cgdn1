@@ -24,31 +24,26 @@ static esp_err_t receive_image(httpd_req_t *req) {
 
   const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
   if (target == NULL) {
-    http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "no ota slot");
-    return ESP_FAIL;
+    return http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "no ota slot");
   }
   if (req->content_len <= 0) {
-    http_error(req, HTTPD_411_LENGTH_REQUIRED, "empty upload");
-    return ESP_FAIL;
+    return http_error(req, HTTPD_411_LENGTH_REQUIRED, "empty upload");
   }
   if ((size_t) req->content_len > target->size) {
-    http_error(req, HTTPD_413_CONTENT_TOO_LARGE, "image larger than slot");
-    return ESP_FAIL;
+    return http_error(req, HTTPD_413_CONTENT_TOO_LARGE, "image larger than slot");
   }
   ESP_LOGI(TAG, "OTA -> %s (%ld bytes)", target->label, (long) req->content_len);
 
   char *buf = malloc(4096);
   if (buf == NULL) {
-    http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "out of memory");
-    return ESP_FAIL;
+    return http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "out of memory");
   }
   // Passing the size erases only the sectors the image needs.
   esp_ota_handle_t ha = 0;
   esp_err_t err = esp_ota_begin(target, req->content_len, &ha);
   if (err != ESP_OK) {
     free(buf);
-    http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, esp_err_to_name(err));
-    return ESP_FAIL;
+    return http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, esp_err_to_name(err));
   }
 
   int remaining = req->content_len;
@@ -61,8 +56,7 @@ static esp_err_t receive_image(httpd_req_t *req) {
     if (r <= 0 || esp_ota_write(ha, buf, r) != ESP_OK) {
       free(buf);
       esp_ota_abort(ha);
-      http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "ota recv/write failed");
-      return ESP_FAIL;
+      return http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "ota recv/write failed");
     }
     timeouts = 0;
     remaining -= r;
@@ -71,8 +65,7 @@ static esp_err_t receive_image(httpd_req_t *req) {
 
   err = esp_ota_end(ha);
   if (err != ESP_OK) {
-    http_error(req, HTTPD_400_BAD_REQUEST, esp_err_to_name(err));
-    return ESP_FAIL;
+    return http_error(req, HTTPD_400_BAD_REQUEST, esp_err_to_name(err));
   }
   // Only images of this project: a foreign app would not carry this OTA
   // endpoint or the rollback gate.
@@ -80,13 +73,11 @@ static esp_err_t receive_image(httpd_req_t *req) {
   const esp_app_desc_t *self = esp_app_get_description();
   if (esp_ota_get_partition_description(target, &desc) != ESP_OK ||
       strncmp(desc.project_name, self->project_name, sizeof(desc.project_name)) != 0) {
-    http_error(req, HTTPD_400_BAD_REQUEST, "not a cgdn1 firmware image");
-    return ESP_FAIL;
+    return http_error(req, HTTPD_400_BAD_REQUEST, "not a cgdn1 firmware image");
   }
   err = esp_ota_set_boot_partition(target);
   if (err != ESP_OK) {
-    http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, esp_err_to_name(err));
-    return ESP_FAIL;
+    return http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, esp_err_to_name(err));
   }
   ESP_LOGI(TAG, "OTA ok: %s %s, rebooting into %s", desc.project_name, desc.version, target->label);
   httpd_resp_sendstr(req, "OK, rebooting. The new firmware confirms itself after 60 s of "
@@ -99,8 +90,7 @@ static esp_err_t receive_image(httpd_req_t *req) {
 
 esp_err_t api_ota_post(httpd_req_t *req) {
   if (!fw_update_hold_slot()) {
-    http_error(req, HTTPD_400_BAD_REQUEST, "an update is already running");
-    return ESP_FAIL;
+    return http_error(req, HTTPD_400_BAD_REQUEST, "an update is already running");
   }
   esp_err_t err = receive_image(req);
   fw_update_release_slot();

@@ -16,6 +16,7 @@
 #include "fw_manifest.h"
 #include "fw_update.h"
 #include "heap_internal.h"
+#include "json_escape.h"
 #include "net.h"
 #include "rollback.h"
 #include "screen.h"
@@ -39,17 +40,6 @@
   "\"wifi_fail\":\"%s\""
 #define STATUS_FORMAT                                                                              \
   ",\"slot\":\"%s\",\"wifi\":\"%s\",\"ssid\":\"%s\",\"dev\":%s,\"test_hooks\":%s,\"web\":\"%s\""
-#define DIAG_FORMAT                                                                                \
-  ",\"reset\":\"%s\",\"up_s\":%d,\"rssi\":%d,\"ch\":%d,"                                           \
-  "\"disc\":{\"n\":%d,\"reason\":%d,\"at_s\":%d},\"ips\":%d,"                                      \
-  "\"heap_min\":%u,\"heap_largest\":%u,\"heap_free\":%u,\"psram_free\":%u,\"psram_min\":%u,"       \
-  "\"sockets\":%d,"                                                                                \
-  "\"stack_free\":{%s},\"stall\":%s,"                                                              \
-  "\"confirm_ms\":%d,\"cfg_ms\":%d,"                                                               \
-  "\"img\":\"%s\",\"bootloops\":%lu,\"ui_timeouts\":%d,\"frames_reposted\":%d,\"ap\":%s,"          \
-  "\"off\":\"%s\",\"btn\":{\"armed\":%s,\"level\":%d,\"clicks\":%d,\"holds\":%d,\"longs\":%d},"    \
-  "\"crash\":"
-
 // The least free stack each of the firmware's own tasks has had, in bytes, as
 // "name":bytes pairs; a task that is not running is left out.
 static void stack_report(char *out, int cap) {
@@ -109,20 +99,40 @@ static void update_report(char *buf, int *n, int cap) {
   bufappend(buf, n, cap, ",\"auto_update\":%s", fw_update_auto() ? "true" : "false");
 }
 
-// Copies a network name for use inside a JSON string: quotes and backslashes are
-// escaped, control and non-ASCII-safe bytes it cannot represent become '?'.
-static void json_quote(char *dst, size_t cap, const uint8_t *src) {
-  size_t o = 0;
-  for (size_t i = 0; src[i] && o + 3 < cap; i++) {
-    uint8_t c = src[i];
-    if (c == '"' || c == '\\') {
-      dst[o++] = '\\';
-      dst[o++] = (char) c;
-    } else {
-      dst[o++] = c < 0x20 ? '?' : (char) c;
-    }
-  }
-  dst[o] = '\0';
+// ,"reset" to ,"btn":{...}: the diagnostics, a group of related values per append.
+static void diag_report(char *buf, int *n, int cap, const net_stats_t *ns) {
+  bufappend(buf, n, cap, ",\"reset\":\"%s\",\"up_s\":%d", rollback_reset_reason(),
+            (int) (esp_timer_get_time() / 1000000));
+  bufappend(buf, n, cap, ",\"rssi\":%d,\"ch\":%d", ns->rssi, ns->channel);
+  bufappend(buf, n, cap, ",\"disc\":{\"n\":%d,\"reason\":%d,\"at_s\":%d},\"ips\":%d",
+            ns->disc_count, ns->disc_reason, ns->disc_at_s, ns->ip_count);
+  bufappend(buf, n, cap, ",\"heap_min\":%u,\"heap_largest\":%u,\"heap_free\":%u",
+            (unsigned) heap_caps_get_minimum_free_size(HEAP_INTERNAL),
+            (unsigned) heap_caps_get_largest_free_block(HEAP_INTERNAL),
+            (unsigned) heap_caps_get_free_size(HEAP_INTERNAL));
+  unsigned psram_free = 0;
+  unsigned psram_min = 0;
+  wasm_host_psram(&psram_free, &psram_min);
+  bufappend(buf, n, cap, ",\"psram_free\":%u,\"psram_min\":%u", psram_free, psram_min);
+  bufappend(buf, n, cap, ",\"sockets\":%d", sockets_in_use());
+  char stacks[160];
+  stack_report(stacks, sizeof(stacks));
+  char stall[96];
+  stall_watch_json(stall, sizeof(stall));
+  bufappend(buf, n, cap, ",\"stack_free\":{%s},\"stall\":%s", stacks, stall);
+  bufappend(buf, n, cap, ",\"confirm_ms\":%d,\"cfg_ms\":%d", rollback_confirm_ms(),
+            creds_last_hash_ms());
+  bufappend(buf, n, cap, ",\"img\":\"%s\",\"bootloops\":%lu", rollback_image_state(),
+            rollback_bootloops());
+  bufappend(buf, n, cap, ",\"ui_timeouts\":%d,\"frames_reposted\":%d", screen_manager_ui_timeouts(),
+            screen_manager_frames_reposted());
+  bufappend(buf, n, cap, ",\"ap\":%s,\"off\":\"%s\"", net_ap_is_up() ? "true" : "false",
+            system_last_off());
+  button_counts_t btn;
+  button_counts(&btn);
+  bufappend(buf, n, cap, ",\"btn\":{\"armed\":%s,\"level\":%d,\"clicks\":%d,\"holds\":%d",
+            btn.armed ? "true" : "false", btn.level, btn.clicks, btn.holds);
+  bufappend(buf, n, cap, ",\"longs\":%d}", btn.longs);
 }
 
 esp_err_t api_status_get(httpd_req_t *req) {
@@ -132,7 +142,7 @@ esp_err_t api_status_get(httpd_req_t *req) {
   net_ip(ip, sizeof(ip));
   char host[40];
   net_host(host, sizeof(host));
-  char buf[2048];
+  char buf[2304];
   int n = 0;
   bufappend(buf, &n, sizeof(buf), PUBLIC_FORMAT, API_VERSION, FW_VERSION,
             creds_config_is_set() ? "true" : "false", signed_in ? "true" : "false", ip, host,
@@ -146,14 +156,14 @@ esp_err_t api_status_get(httpd_req_t *req) {
   bool joined = net_online();
   net_stats_t ns;
   net_stats(&ns);
-  char ssid[72] = "";
+  char ssid[NET_SSID_MAX * JSON_ESCAPE_MAX + 1] = "";
   if (joined && ns.have_ap) {
-    json_quote(ssid, sizeof(ssid), ns.ssid);
+    json_escape(ssid, sizeof(ssid), (const char *) ns.ssid);
   }
-  // Every append is bounded: the longest answer (escaped 32-byte SSID, all seven
-  // stacks, the button counts, a crash with 8 frames, the watchdog and panic marks,
-  // 240 bytes of update notes, the address and a rolled back version) is about 1900 bytes
-  // and a truncated one is still a string.
+  // Every append is bounded: the longest answer (a 32-byte SSID of control bytes, 6
+  // bytes each escaped, all seven stacks, the button counts, a crash with 8 frames, the
+  // watchdog and panic marks, 240 bytes of update notes, the address and a rolled back
+  // version) is about 2030 bytes and a truncated one is still a string.
   web_manifest_t wm;
   const char *web_version = web_manifest_get(&wm) ? wm.version : "";
   bufappend(buf, &n, sizeof(buf), STATUS_FORMAT, run->label, joined ? "connected" : "not connected",
@@ -164,28 +174,8 @@ esp_err_t api_status_get(httpd_req_t *req) {
     bufappend(buf, &n, sizeof(buf), ",\"cfg_migrated\":\"%s\"", migrated);
   }
   update_report(buf, &n, sizeof(buf));
-  int up_s = (int) (esp_timer_get_time() / 1000000);
-  const char *reset = rollback_reset_reason();
-  unsigned heap_min = (unsigned) heap_caps_get_minimum_free_size(HEAP_INTERNAL);
-  unsigned heap_largest = (unsigned) heap_caps_get_largest_free_block(HEAP_INTERNAL);
-  unsigned heap_free = (unsigned) heap_caps_get_free_size(HEAP_INTERNAL);
-  unsigned psram_free = 0;
-  unsigned psram_min = 0;
-  wasm_host_psram(&psram_free, &psram_min);
-  int sockets = sockets_in_use();
-  char stacks[160];
-  stack_report(stacks, sizeof(stacks));
-  char stall[96];
-  stall_watch_json(stall, sizeof(stall));
-  button_counts_t btn;
-  button_counts(&btn);
-  bufappend(buf, &n, sizeof(buf), DIAG_FORMAT, reset, up_s, ns.rssi, ns.channel, ns.disc_count,
-            ns.disc_reason, ns.disc_at_s, ns.ip_count, heap_min, heap_largest, heap_free,
-            psram_free, psram_min, sockets, stacks, stall, rollback_confirm_ms(),
-            creds_last_hash_ms(), rollback_image_state(), rollback_bootloops(),
-            screen_manager_ui_timeouts(), screen_manager_frames_reposted(),
-            net_ap_is_up() ? "true" : "false", system_last_off(), btn.armed ? "true" : "false",
-            btn.level, btn.clicks, btn.holds, btn.longs);
+  diag_report(buf, &n, sizeof(buf), &ns);
+  bufappend(buf, &n, sizeof(buf), ",\"crash\":");
   if (n < (int) sizeof(buf) - 1) {
     n += crash_log_json(buf + n, (int) sizeof(buf) - n);  // bounded, returns at most cap - 1
   }
