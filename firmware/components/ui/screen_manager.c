@@ -1,13 +1,14 @@
 #include "screen.h"
 #include "screen_internal.h"
 
+#include <assert.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
+#include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
-#include "esp_event.h"
 #include "esp_log.h"
 #include "esp_pthread.h"
 #include "esp_task_wdt.h"
@@ -99,7 +100,6 @@ enum {
   EV_DISPLAY,       // the power button and the power-off path: display_cmd_t
   EV_WAKE,          // a finger on a blanked panel
 };
-ESP_EVENT_DEFINE_BASE(CORE_EVENT);
 
 #define UI_QUEUE_LEN 16
 #define HEARTBEAT_US (1000 * 1000)
@@ -121,7 +121,10 @@ static volatile int s_ui_timeouts;  // GET /screen requests the loop did not ans
 static esp_timer_handle_t s_heartbeat;
 static bool s_heartbeat_on;  // only then may the loop's task join the watchdog
 
-static esp_event_loop_handle_t s_loop;
+// A plain queue, not an esp_event loop: a loop without a task of its own makes every
+// post take the mutex its handlers run under, so a post that cannot wait fails
+// whenever a handler is running. This one refuses only when it is full.
+static QueueHandle_t s_queue;
 static int s_active;  // screen index reported by GET /config; the UI loop and POST /config set it
 static int s_shown = -1;  // screen that got CORE_EV_SHOW last
 static int s_cur = -1;    // screen whose callback is running, -1 outside callbacks
@@ -219,9 +222,31 @@ static void render(int idx) {
   apply_led(idx);
 }
 
+// One queued event, its data copied in.
+typedef struct {
+  int32_t id;
+  union {
+    int idx;
+    timer_msg_t timer;
+    net_msg_t net;
+    preview_t *preview;
+    finger_msg_t finger;
+    display_cmd_t display;
+  } data;
+} ui_msg_t;
+
+static bool queue_send(int32_t id, const void *data, size_t size, TickType_t wait) {
+  ui_msg_t msg = {.id = id};
+  assert(size <= sizeof(msg.data));
+  if (size > 0) {
+    memcpy(&msg.data, data, size);
+  }
+  return s_queue && xQueueSendToBack(s_queue, &msg, wait) == pdTRUE;
+}
+
 // Queues an event for the UI loop; counts it as dropped when the queue stays full.
 static bool post_event(int32_t id, const void *data, size_t size, TickType_t wait) {
-  bool queued = s_loop && esp_event_post_to(s_loop, CORE_EVENT, id, data, size, wait) == ESP_OK;
+  bool queued = queue_send(id, data, size, wait);
   if (!queued) {
     s_dropped++;
     ESP_LOGW(TAG, "event %d dropped, %d so far", (int) id, s_dropped);
@@ -328,8 +353,8 @@ void core_stats(const char *json) {
 
 // Called on the worker task: forward the result to the UI loop, which owns the
 // body from then on. A screen waits for exactly one result per request, so when
-// the queue (or the heap for the event copy) refuses the full result, the body
-// is dropped and a small failure result is retried until it gets in.
+// the queue refuses the full result, the body is dropped and a small failure
+// result is retried until it gets in.
 static void net_done(int owner, core_net_result_t *r) {
   net_msg_t m = {.owner = owner, .net = *r};
   if (post_event(EV_NET, &m, sizeof(m), pdMS_TO_TICKS(1000))) {
@@ -341,8 +366,7 @@ static void net_done(int owner, core_net_result_t *r) {
   m.net.parsed = NULL;
   m.net.len = 0;
   m.net.err = ESP_ERR_NO_MEM;
-  while (esp_event_post_to(s_loop, CORE_EVENT, EV_NET, &m, sizeof(m), pdMS_TO_TICKS(100)) !=
-         ESP_OK) {
+  while (!queue_send(EV_NET, &m, sizeof(m), pdMS_TO_TICKS(100))) {
     vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
@@ -662,7 +686,7 @@ static void carousel_led(int idx, uint8_t rgb[3]) {
 // No log on a drop: the frame tick would print it fifty times a second.
 static bool carousel_post(carousel_work_t work) {
   int32_t id = work == CAROUSEL_FRAME ? EV_FRAME : EV_REFRESH;
-  bool queued = s_loop && esp_event_post_to(s_loop, CORE_EVENT, id, NULL, 0, 0) == ESP_OK;
+  bool queued = queue_send(id, NULL, 0, 0);
   if (!queued) {
     s_dropped++;  // the next tick asks again; only a frame is lost
   }
@@ -836,7 +860,7 @@ static void heartbeat_cb(void *arg) {
   post_event(EV_HEARTBEAT, NULL, 0, 0);
 }
 
-static void ui_handler(void *arg, esp_event_base_t base, int32_t id, void *data) {
+static void ui_handler(int32_t id, void *data) {
   if (s_enabled_dirty) {
     s_enabled_dirty = false;
     enabled_reload();
@@ -1055,9 +1079,12 @@ void screen_manager_set_version(const char *version) {
 // pthread_self() on every call into a module, which IDF answers only on a task
 // pthread_create made, so the loop runs on a pthread rather than its own task.
 static void *ui_thread(void *arg) {
-  while (esp_event_loop_run(s_loop, portMAX_DELAY) == ESP_OK) {
+  ui_msg_t msg;
+  while (true) {
+    if (xQueueReceive(s_queue, &msg, portMAX_DELAY) == pdTRUE) {
+      ui_handler(msg.id, &msg.data);
+    }
   }
-  ESP_LOGE(TAG, "ui loop stopped");
   return NULL;
 }
 
@@ -1079,20 +1106,11 @@ static esp_err_t ui_thread_start(void) {
 }
 
 void screen_manager_start(void) {
-  esp_event_loop_args_t args = {
-      .queue_size = UI_QUEUE_LEN,
-      .task_name = NULL,  // runs on ui_thread
-  };
-  esp_err_t err = esp_event_loop_create(&args, &s_loop);
-  if (err == ESP_OK) {
-    err = esp_event_handler_register_with(s_loop, CORE_EVENT, ESP_EVENT_ANY_ID, ui_handler, NULL);
-  }
-  if (err == ESP_OK) {
-    err = ui_thread_start();
-  }
+  s_queue = xQueueCreate(UI_QUEUE_LEN, sizeof(ui_msg_t));
+  esp_err_t err = s_queue ? ui_thread_start() : ESP_ERR_NO_MEM;
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "ui loop create failed: %s", esp_err_to_name(err));
-    s_loop = NULL;
+    s_queue = NULL;  // not deleted: an httpd handler may be posting into it
     return;
   }
   core_net_start(net_done);
