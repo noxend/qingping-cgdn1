@@ -19,7 +19,9 @@
     "format:sh": "git ls-files -z '*.sh' | xargs -0 uvx --from shfmt-py==4.2.0 shfmt -w",
     "format:check:sh": "git ls-files -z '*.sh' | xargs -0 uvx --from shfmt-py==4.2.0 shfmt -d",
     "lint:py": "uvx ruff@0.17.0 check .",
-    "lint:sh": "git ls-files -z '*.sh' | xargs -0 uvx --from shellcheck-py==0.11.0.1 shellcheck"
+    "lint:sh": "git ls-files -z '*.sh' | xargs -0 uvx --from shellcheck-py==0.11.0.1 shellcheck",
+    "embed": "npm run build -w web && gzip -9 -n -c web/dist/index.html > firmware/components/api/app.html.gz",
+    "embed:check": "npm run build -w web && gunzip -c firmware/components/api/app.html.gz | cmp -s - web/dist/index.html || { echo 'firmware/components/api/app.html.gz is out of date: run npm run embed'; exit 1; }"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
