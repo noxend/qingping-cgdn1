@@ -51,6 +51,9 @@ jobs:
       - name: Lint shell scripts
         run: npm run lint:sh
 
+      - name: Embedded web interface matches web/
+        run: npm run embed:check
+
   # The plugins on this computer: the standard ones against their golden frames, and
   # every plugin through the preview authors use. Both link the firmware's text.c,
   # loader and bindings, so this is what notices when those stop building off the device.
