@@ -1,22 +1,22 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import useSWR from "swr";
 
-import { sessionGone } from "../../lib/answer";
-import { poll } from "../../lib/api";
+import { refused } from "../../lib/answer";
+import { poll, readJson, readText, request } from "../../lib/api";
 import { notify } from "../../lib/notify";
 import { useT } from "../../i18n";
 
 // One request to the device: {ok, status, text}.
 async function devCall(path) {
-  const response = await fetch(path, { signal: AbortSignal.timeout(10000) });
-  return { ok: response.ok, status: response.status, text: await response.text() };
+  const response = await request(path);
+  return { response, text: await response.text() };
 }
 
 // The device answers errors as {"error": "..."} (API 1); older firmware sent text. The
 // text is the firmware's own English and is shown as it comes.
-function errorText(response) {
+function errorText({ response, text }) {
   try {
-    const body = JSON.parse(response.text);
+    const body = JSON.parse(text);
     if (body && typeof body.error === "string") {
       return body.error;
     }
@@ -24,7 +24,7 @@ function errorText(response) {
     // Not JSON: an older firmware's plain text.
   }
 
-  return response.text.trim() || "HTTP " + response.status;
+  return text.trim() || "HTTP " + response.status;
 }
 
 // Runs a device action and reports a failure in a toast. Resolves to the response
@@ -35,19 +35,18 @@ export function useDevAction() {
   return useCallback(
     async (label, path) => {
       try {
-        const response = await devCall(path);
+        const answer = await devCall(path);
 
-        if (response.status === 401) {
-          sessionGone(t);
+        if (refused(t, answer.response)) {
           return null;
         }
 
-        if (!response.ok) {
-          notify(`${label}: ${errorText(response)}`, "danger");
+        if (!answer.response.ok) {
+          notify(`${label}: ${errorText(answer)}`, "danger");
           return null;
         }
 
-        return response.text;
+        return answer.text;
       } catch {
         notify(t("dev.noAnswer", { label }), "danger");
         return null;
@@ -91,18 +90,11 @@ export function useThrottled(fn, ms) {
 }
 
 // /status with the diagnostics: reset reason, Wi-Fi, heap, stacks, the last crash.
-export const useDevStatus = () =>
-  useSWR("/status", async (path) => JSON.parse((await devCall(path)).text), poll(3000));
-
-export const useSensors = () =>
-  useSWR(
-    "/sensors",
-    async (path) => (await fetch(path, { signal: AbortSignal.timeout(6000) })).json(),
-    poll(3000),
-  );
+// The same key and reader as useStatus, polled faster while this page is open.
+export const useDevStatus = () => useSWR("/status", readJson, poll(3000));
 
 // The first line of GET /touch: gesture counters and the carousel's timing figures.
 export const useTouchStats = () =>
-  useSWR("/touch", async (path) => (await devCall(path)).text.split("\n")[0], poll(2000));
+  useSWR("/touch", async (path) => (await readText(path)).split("\n")[0], poll(2000));
 
 export const hex2 = (n) => n.toString(16).toUpperCase().padStart(2, "0");
