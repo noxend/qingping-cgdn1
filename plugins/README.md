@@ -131,9 +131,10 @@ wasm_sensor_t r;
 if (plugin_sensor_get(SENSOR_TEMP, &r, sizeof(r))) { /* r.value */ }
 ```
 
-`SENSOR_TEMP` (degrees Celsius), `SENSOR_HUM` (percent) and `SENSOR_CO2` (ppm). It returns true
-when the reading is valid: false before the first reading and when it is too old. `r.age_ms` is
-its age. The preview reports 22.5 °C, 45 % and 650 ppm.
+`SENSOR_TEMP` (degrees Celsius), `SENSOR_HUM` (percent), `SENSOR_CO2` (ppm), `SENSOR_PM25` and
+`SENSOR_PM10` (µg/m³). It returns true when the reading is valid: false before the first reading
+and when it is too old. `r.age_ms` is its age. The preview reports 22.5 °C, 45 %, 650 ppm, and
+12 and 20 µg/m³.
 
 ### Time
 
@@ -326,6 +327,8 @@ Reason).
   - [temperature](standard/temperature/README.md) and [co2](standard/co2/README.md): sensors,
     and the LED in co2.
   - [humidity](standard/humidity/README.md): the LED as a comfort band.
+  - [pm25](standard/pm25/README.md) and [pm10](standard/pm10/README.md): a caption over the
+    value, and six LED colours.
   - [alerts](standard/alerts/README.md): an 8-bit map, 21 KB of JSON a call, stats.
 
 ## Writing a plugin with an AI assistant

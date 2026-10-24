@@ -1,0 +1,12 @@
+{
+  "id": "pm10",
+  "name": { "en": "PM10" },
+  "description": {
+    "en": "Coarse particles (PM10) from the particulate sensor, with the LED in the stock firmware's colours",
+    "uk": "Пил PM10 з давача пилу з індикатором у кольорах заводської прошивки"
+  },
+  "category": "climate",
+  "version": "1.0.0",
+  "hosts": [],
+  "params": []
+}

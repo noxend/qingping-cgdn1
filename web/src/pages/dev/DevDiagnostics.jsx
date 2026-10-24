@@ -48,6 +48,8 @@ function SensorFigures({ status, sensors }) {
       <InfoRow label={t("dev.diag.temp")}>{reading(t, sensors?.temp, "°C")}</InfoRow>
       <InfoRow label={t("dev.diag.hum")}>{reading(t, sensors?.hum, "%")}</InfoRow>
       <InfoRow label="CO₂">{reading(t, sensors?.co2, "ppm")}</InfoRow>
+      <InfoRow label="PM2.5">{reading(t, sensors?.pm25, "µg/m³")}</InfoRow>
+      <InfoRow label="PM10">{reading(t, sensors?.pm10, "µg/m³")}</InfoRow>
       {Object.entries(status.stack_free || {}).map(([name, bytes]) => (
         <InfoRow key={name} label={t("dev.diag.stack", { name })}>
           {t("dev.diag.bytes", { n: bytes })}

@@ -9,6 +9,7 @@ int main(void) {
   printf("gfx_w %d\ngfx_h %d\ngfx_keep %d\n", GFX_W, GFX_H, GFX_KEEP);
   printf("font_text %d\nfont_digits %d\n", GFX_FONT_TEXT, GFX_FONT_DIGITS);
   printf("sensor_temp %d\nsensor_hum %d\nsensor_co2 %d\n", SENSOR_TEMP, SENSOR_HUM, SENSOR_CO2);
+  printf("sensor_pm25 %d\nsensor_pm10 %d\n", SENSOR_PM25, SENSOR_PM10);
   printf("ev_show %d\nev_hide %d\nev_timer %d\n", CORE_EV_SHOW, CORE_EV_HIDE, CORE_EV_TIMER);
   printf("sensor_size %zu\n", sizeof(wasm_sensor_t));
   printf("sensor_value %zu\n", offsetof(wasm_sensor_t, value));

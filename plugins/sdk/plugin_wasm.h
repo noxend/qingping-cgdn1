@@ -132,7 +132,7 @@ static inline void ui_label(const char *text) {
 WASM_IMPORT("plugin_setting_get")
 void plugin_setting_get(const char *key, char *out, int cap, const char *def);
 
-enum { SENSOR_TEMP = 0, SENSOR_HUM = 1, SENSOR_CO2 = 2 };
+enum { SENSOR_TEMP = 0, SENSOR_HUM = 1, SENSOR_CO2 = 2, SENSOR_PM25 = 3, SENSOR_PM10 = 4 };
 
 typedef struct {
   float value;

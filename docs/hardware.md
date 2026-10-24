@@ -7,7 +7,7 @@
 | Wi-Fi/BLE module | ESP32-WROVER-B | Module label on our board; FCC ID 2AC7Z-ESP32WROVERB in the user manual |
 | Second MCU | STM32G070CBT6 | [iFixit teardown photo](https://www.ifixit.com/Guide/Disassembling+Qingping+Air+Monitor+Lite+CGDN1/167734), not yet checked on our board |
 | SPI NOR flash next to the STM32 | GD25Q80 (1 MB) | Same iFixit photo, not yet checked |
-| PM sensor | Plantower PMS7003 | Web search result naming the replacement part, not yet checked |
+| PM sensor | Plantower, I2C at 0x12 (PMSA003I frame) | Stock app image: a 32-byte read from 0x12 on I2C port 0 parsed as a Plantower frame; the model is not checked on the board |
 | CO2 sensor | Sensirion SCD40 | Strings in the stock app image (SCD40_* calls), I2C |
 | Touch bar MCU | STM32G070CBT6 | Stock app drives it as the touch controller and can reflash it (ota_mcu) |
 
@@ -183,7 +183,9 @@ Driving it so that it does not whine (found on hardware, matches the stock `oled
   without shrinking the picture.
 - Upright orientation is `flip = 0` in `firmware/components/drivers/oled.c`, chosen by eye.
 - GPIO18 high stops the dust sensor fan; GPIO13 high with GPIO18 low runs it. Left untouched, the
-  fan is off. Neither pin changed the panel hum, which came from CS handling (above).
+  fan is off. Neither pin changed the panel hum, which came from CS handling (above). The stock
+  configures both as outputs at boot and raises GPIO13; the firmware does the same when it starts
+  the PM sensor (`firmware/components/sensors/pm_sensor.c`).
 - The residual sound with display and LED on is faint, audible only at the ear.
 - `GET /oled?c=..` (raw command bytes), `?reset=1`, `?flip=N`, `?led=0|1`, `?test=1|0` and
   `GET /gpio?pin=13|18&v=0|1` are token gated research probes. They are not in the firmware: a
@@ -228,7 +230,7 @@ Device map, from an on-device I2C scan (7-bit addresses):
 
 | Port | Pins | Devices |
 |---|---|---|
-| 0 | SCL 27 / SDA 26 | 0x62 SCD40 (CO2), 0x44 SHT4x (temp/humidity), 0x10 Apple MFi coprocessor |
+| 0 | SCL 27 / SDA 26 | 0x62 SCD40 (CO2), 0x44 SHT4x (temp/humidity), 0x10 Apple MFi coprocessor; 0x12 PM sensor, powered only with GPIO13 high (stock app image; the scan ran with it off) |
 | 1 | SCL 14 / SDA 12 | 0x0c touch strip / "dany" MCU |
 
 The MFi coprocessor responding at 0x10 means hardware HomeKit is available, not only software HAP.

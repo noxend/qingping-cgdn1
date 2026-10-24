@@ -1,5 +1,5 @@
 #!/bin/bash
-# Host check of the standard plugins and the device menu. build.sh builds the five
+# Host check of the standard plugins and the device menu. build.sh builds the seven
 # modules from plugins/standard; the harness runs every case of cases.h through the
 # device's plugin table and bindings on WAMR, and draws the menu pages. Each plugin
 # frame must equal the golden one pixel for pixel, and its LED colour and alert stats
@@ -20,7 +20,7 @@ trap 'rm -rf "$BUILD"' EXIT
 MODS="$BUILD/modules"
 DATA="$BUILD/data"
 mkdir -p "$MODS" "$DATA"
-for p in clock temperature co2 humidity alerts; do
+for p in clock temperature co2 humidity alerts pm25 pm10; do
   "$PLUGINS/build.sh" "$PLUGINS/standard/$p" "$MODS/$p.wasm" >/dev/null
 done
 # The alerts API's answer as it was fetched, the same answer cut short, and the same

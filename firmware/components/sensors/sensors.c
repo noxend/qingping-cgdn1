@@ -7,6 +7,7 @@
 #include "esp_log.h"
 #include "esp_task_wdt.h"
 #include "esp_timer.h"
+#include "pm_sensor.h"
 #include "scd4x.h"
 #include "sensor_bus.h"
 #include "settings.h"
@@ -15,20 +16,23 @@
 
 static const char *TAG = "sensors";
 
-#define TICK_MS 1000  // the SCD40 is polled for a new value every tick
+#define TICK_MS 1000  // the SCD40 is polled for a new value every tick, the PM sensor read
 #define SHT_EVERY_TICKS 2
 #define INIT_RETRY_TICKS 10
 #define CO2_QUIET_TICKS 20  // no CO2 value for this long: restart the SCD40
 #define BUS_RESET_TICKS 30  // nothing on the bus answered for this long: reset it
 #define FIRST_READ_WAIT_MS 500
+#define PM_FRAMES_BEFORE_VALID 3  // the stock counts its first two frames as warm-up
+#define PM_MISSES_TO_WARN 5       // a missed frame now and then, or the start, is not news
 #define TEMP_OFFSET_KEY "temp_offset"
 
-// Older than this and a reading is reported invalid: a few sampling periods
-// (the SCD40 delivers a value every 5 s per Sensirion's periodic mode).
+// Older than this and a reading is reported invalid: a few sampling periods.
 static const uint32_t MAX_AGE_MS[SENSOR_COUNT] = {
-    [SENSOR_TEMP] = 15000,
+    [SENSOR_TEMP] = 15000,  // the SHT4x is read every 2 s
     [SENSOR_HUM] = 15000,
-    [SENSOR_CO2] = 30000,
+    [SENSOR_CO2] = 30000,   // the SCD40 delivers a value every 5 s (periodic mode)
+    [SENSOR_PM25] = 10000,  // the PM sensor is read every second
+    [SENSOR_PM10] = 10000,
 };
 
 typedef struct {
@@ -41,6 +45,7 @@ static slot_t s_slots[SENSOR_COUNT];
 static SemaphoreHandle_t s_first_read;  // given once the sampler has tried the SHT4x
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
 static atomic_int s_temp_offset;  // tenths of a degree
+static atomic_bool s_pm_off;      // set by sensors_power_off
 
 static void store(sensor_id_t id, float value) {
   int64_t now = esp_timer_get_time();
@@ -116,6 +121,23 @@ static bool read_sht(void) {
   return true;
 }
 
+// One frame from the PM sensor; the values are kept from its third good frame on.
+static bool read_pm(int *frames) {
+  uint16_t pm25 = 0;
+  uint16_t pm10 = 0;
+  if (!pm_sensor_read(&pm25, &pm10)) {
+    return false;
+  }
+  if (*frames < PM_FRAMES_BEFORE_VALID) {
+    ++*frames;
+  }
+  if (*frames == PM_FRAMES_BEFORE_VALID) {
+    store(SENSOR_PM25, pm25);
+    store(SENSOR_PM10, pm10);
+  }
+  return true;
+}
+
 // Logs only when a sensor changes between working and failing, so a dead one
 // shows up once instead of every second.
 static void note_state(const char *name, bool *was_ok, bool ok) {
@@ -128,8 +150,12 @@ static void note_state(const char *name, bool *was_ok, bool ok) {
 static void sampler(void *arg) {
   bool sht_ready = false;
   bool scd_ready = false;
+  bool pm_ready = false;
   bool sht_ok = true;
   bool scd_ok = true;
+  bool pm_ok = true;
+  int pm_frames = 0;
+  int pm_misses = 0;  // frames missed in a row
   int tick = 0;
   int quiet_ticks = 0;   // ticks since the SCD40 last delivered a value
   int silent_ticks = 0;  // ticks since any sensor answered
@@ -148,6 +174,10 @@ static void sampler(void *arg) {
       if (!scd_ready) {
         scd_ready = scd4x_init();  // blocks about 0.5 s
         note_state("SCD40", &scd_ok, scd_ready);
+      }
+      if (!pm_ready) {
+        pm_ready = pm_sensor_init();
+        note_state("PM sensor", &pm_ok, pm_ready);
       }
     }
     vTaskDelay(pdMS_TO_TICKS(TICK_MS));
@@ -172,7 +202,15 @@ static void sampler(void *arg) {
       any_ok |= r == SCD4X_OK;
       note_state("SCD40", &scd_ok, r == SCD4X_OK);
     }
-    // Both sensors silent for a while: a slave holding SDA low looks exactly like
+    if (pm_ready && !atomic_load(&s_pm_off)) {
+      bool ok = read_pm(&pm_frames);
+      any_ok |= ok;
+      pm_misses = ok ? 0 : pm_misses + 1;
+      if (ok || pm_misses >= PM_MISSES_TO_WARN) {
+        note_state("PM sensor", &pm_ok, ok);
+      }
+    }
+    // All sensors silent for a while: a slave holding SDA low looks exactly like
     // this, and only a bus reset (SCL clocked out) frees it.
     silent_ticks = any_ok ? 0 : silent_ticks + 1;
     if (silent_ticks >= BUS_RESET_TICKS) {
@@ -181,6 +219,11 @@ static void sampler(void *arg) {
       sensor_bus_reset();
     }
   }
+}
+
+void sensors_power_off(void) {
+  atomic_store(&s_pm_off, true);
+  pm_sensor_power_off();
 }
 
 void sensors_start(void) {

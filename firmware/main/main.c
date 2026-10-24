@@ -105,6 +105,7 @@ static void power_off(const char *reason) {
     return;
   }
   screen_manager_powering_off();
+  sensors_power_off();
   vTaskDelay(pdMS_TO_TICKS(100));  // the UI loop draws it before the rail goes
   s_stayed_on = !system_power_off(reason, button_pressed);
   screen_manager_display_off();
