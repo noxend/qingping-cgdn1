@@ -13,7 +13,7 @@ idf_component_register(SRCS "wasm_host.c" "wasm_plugins.c" "wasm_store.c" "wasm_
 # links against. The order is the install order of wasm_host.c; a folder under
 # plugins/standard that is not in the list stops the configure.
 set(PLUGINS "${CMAKE_CURRENT_LIST_DIR}/../../../plugins")
-set(STANDARD_PLUGINS alerts clock humidity temperature co2)
+set(STANDARD_PLUGINS alerts clock humidity temperature co2 pm25 pm10)
 file(GLOB folders LIST_DIRECTORIES true CONFIGURE_DEPENDS RELATIVE "${PLUGINS}/standard"
      "${PLUGINS}/standard/*")
 foreach(folder ${folders})

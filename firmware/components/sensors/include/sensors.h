@@ -1,8 +1,6 @@
 // Environment sensors behind one call. A sampler task owns the I2C bus and keeps
 // the latest value of each sensor; any task reads it with sensor_get, which never
-// touches the bus and never blocks. Particulate matter and the battery are not
-// here yet: their pins are not recorded (docs/hardware.md), and the ids are added
-// when a source exists.
+// touches the bus and never blocks. The battery is not here yet.
 #pragma once
 
 #include <stdbool.h>
@@ -13,6 +11,11 @@
 
 // Starts the sampler task. Call once, before the screens run.
 void sensors_start(void);
+
+// Stops reading the PM sensor and cuts its supply, which stops its fan, as the stock
+// does on power off. On USB the board stays up after a power off; the next start
+// powers the sensor again.
+void sensors_power_off(void);
 
 // Copies the latest reading of `id` into out and returns out->valid. A reading
 // older than a few sampling periods is reported invalid instead of stale.

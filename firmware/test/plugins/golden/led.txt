@@ -32,6 +32,22 @@ hum_31 #FF9600
 hum_65 #FF9600
 hum_75 #FF0000
 hum_80_both #FF0000
+pm25_35 #0BFF06
+pm25_36 #808000
+pm25_76 #BF4D00
+pm25_116 #D90000
+pm25_151 #4000BF
+pm25_250 #4000BF
+pm25_251 #82007D
+pm25_999 #82007D
+pm25_invalid off
+pm10_50 #0BFF06
+pm10_150 #808000
+pm10_151 #BF4D00
+pm10_251 #D90000
+pm10_351 #4000BF
+pm10_451 #82007D
+pm10_invalid off
 alerts_answer #FF0000 {"fetch_ok":1,"fetch_fail":0,"http":200,"err":"ESP_OK","alerts":24,"draws":1,"region":"Київська область","level":"red"}
 alerts_donetsk #FF0000 {"fetch_ok":1,"fetch_fail":0,"http":200,"err":"ESP_OK","alerts":24,"draws":1,"region":"Донецька область","level":"red"}
 alerts_lviv off {"fetch_ok":1,"fetch_fail":0,"http":200,"err":"ESP_OK","alerts":24,"draws":1,"region":"Львівська область","level":"none"}
