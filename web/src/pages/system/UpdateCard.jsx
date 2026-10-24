@@ -8,7 +8,7 @@ import { Notice } from "../../components/Notice";
 import { SwitchField } from "../../components/SwitchField";
 import { TitledCard } from "../../components/TitledCard";
 import { accepted } from "../../lib/answer";
-import { useStatus } from "../../lib/api";
+import { request, useStatus } from "../../lib/api";
 import { notify } from "../../lib/notify";
 import { useT } from "../../i18n";
 
@@ -91,7 +91,7 @@ function CheckButton({ reloadStatus }) {
     setChecking(true);
 
     try {
-      const response = await fetch("/update/check", { method: "POST" });
+      const response = await request("/update/check", { method: "POST" });
       if (!(await accepted(t, response, t("system.checkFailed")))) {
         return;
       }
