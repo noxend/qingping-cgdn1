@@ -123,8 +123,9 @@ idf.py -B build-soak -DEXTRA_COMPONENT_DIRS=$HOME/Desktop/repos/cgdn1-dev/compon
 ```
 
 It reports `"dev":true` and `"test_hooks":true` in `GET /status`, and `tools/publish_fw.mjs`
-refuses it: the publisher builds with an empty `EXTRA_COMPONENT_DIRS` and checks the build's
-component list. The web interface shows its Developer page whenever `dev` is true, so a `DEV_BUILD`
+refuses it: the publisher builds with an empty `EXTRA_COMPONENT_DIRS`, checks the build's
+component list, and refuses an ELF where `nm` shows `api_test_hooks_register` as anything but `W`,
+the weak default, whatever the test component is named. The web interface shows its Developer page whenever `dev` is true, so a `DEV_BUILD`
 image without `test_hooks` shows it too, with the diagnostics only; the controls that need the test
 endpoints appear when `test_hooks` is true.
 
