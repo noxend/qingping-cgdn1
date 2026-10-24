@@ -21,6 +21,7 @@
 #include "creds.h"
 #include "dns_answer.h"
 #include "factory_reset.h"
+#include "json_escape.h"
 
 #define NVS_NS FACTORY_WIFI_NS
 
@@ -163,20 +164,6 @@ static int wifi_scan(wifi_ap_record_t *recs, int max) {
 static char s_scan_json[1200];
 static int64_t s_scan_at = 0;
 
-static void json_escape(const char *in, char *out, size_t cap) {
-  size_t o = 0;
-  for (const char *p = in; *p && o + 2 < cap; p++) {
-    unsigned char c = (unsigned char) *p;
-    if (c == '"' || c == '\\') {
-      out[o++] = '\\';
-      out[o++] = c;
-    } else if (c >= 0x20) {
-      out[o++] = c;
-    }
-  }
-  out[o] = '\0';
-}
-
 const char *net_scan_json(void) {
   int64_t now = esp_timer_get_time();
   if (s_scan_at != 0 && now - s_scan_at < 20LL * 1000 * 1000 && s_scan_json[0]) {
@@ -187,7 +174,7 @@ const char *net_scan_json(void) {
   int n = snprintf(s_scan_json, sizeof(s_scan_json), "{\"nets\":[");
   char seen[20][NET_SSID_MAX + 1];
   int nseen = 0;
-  char je[200];
+  char je[NET_SSID_MAX * JSON_ESCAPE_MAX + 1];
   for (int i = 0; i < cnt && nseen < 20; i++) {
     const char *s = (const char *) recs[i].ssid;
     if (s[0] == '\0') {
@@ -205,7 +192,7 @@ const char *net_scan_json(void) {
     }
     strncpy(seen[nseen], s, NET_SSID_MAX);
     seen[nseen][NET_SSID_MAX] = '\0';
-    json_escape(s, je, sizeof(je));
+    json_escape(je, sizeof(je), s);
     n += snprintf(s_scan_json + n, sizeof(s_scan_json) - n, "%s\"%s\"", nseen ? "," : "", je);
     nseen++;
     if (n >= (int) sizeof(s_scan_json) - 260) {

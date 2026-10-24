@@ -88,12 +88,11 @@ static bool same_origin_or_none(httpd_req_t *req) {
 static esp_err_t config_authed(httpd_req_t *req, const char *body, pass_resume_t next) {
   if (!creds_config_is_set()) {
     if (!net_is_ap_client(httpd_req_to_sockfd(req))) {
-      http_error(req, HTTPD_403_FORBIDDEN, "no config password yet: use the setup AP");
-      return ESP_FAIL;
+      return http_error(req, HTTPD_403_FORBIDDEN, "no config password yet: use the setup AP");
     }
     if (!same_origin_or_none(req)) {
-      http_error(req, HTTPD_403_FORBIDDEN, "a page of another site cannot set up this device");
-      return ESP_FAIL;
+      return http_error(req, HTTPD_403_FORBIDDEN,
+                        "a page of another site cannot set up this device");
     }
     return next(req, CREDS_OK, body);
   }
@@ -153,37 +152,32 @@ static esp_err_t save_form(httpd_req_t *req, creds_check_t result, const char *b
   bool first = !creds_config_is_set();
   char ssid[NET_SSID_MAX + 1];
   if (!form_value(body, "ssid", ssid, NET_SSID_MAX, false) || ssid[0] == '\0') {
-    http_error(req, HTTPD_400_BAD_REQUEST, "network name must be 1-32 bytes");
-    return ESP_FAIL;
+    return http_error(req, HTTPD_400_BAD_REQUEST, "network name must be 1-32 bytes");
   }
   char pass[NET_PASS_MAX + 1];
   size_t plen = 0;
   if (!form_value(body, "pass", pass, NET_PASS_MAX, true) ||
       ((plen = strlen(pass)) > 0 && plen < 8)) {
-    http_error(req, HTTPD_400_BAD_REQUEST,
-               "password must be empty (open network), 8-63 chars, "
-               "or a 64-digit hex PSK");
-    return ESP_FAIL;
+    return http_error(req, HTTPD_400_BAD_REQUEST,
+                      "password must be empty (open network), 8-63 chars, "
+                      "or a 64-digit hex PSK");
   }
   // 64 characters is only ever a raw PSK; the driver refuses anything else at that
   // length, which would stop the station on every boot once it is in flash.
   if (plen == 64 && strspn(pass, "0123456789abcdefABCDEF") != 64) {
-    http_error(req, HTTPD_400_BAD_REQUEST, "a 64-char password must be hex (a PSK)");
-    return ESP_FAIL;
+    return http_error(req, HTTPD_400_BAD_REQUEST, "a 64-char password must be hex (a PSK)");
   }
   if (first) {
     char cfg[NET_PASS_MAX + 1];
     if (!form_value(body, "token", cfg, NET_PASS_MAX, false) || !creds_pass_ok(cfg)) {
-      http_error(req, HTTPD_400_BAD_REQUEST,
-                 "config password must be 8-63 characters, letters, digits or symbols, "
-                 "no spaces");
-      return ESP_FAIL;
+      return http_error(req, HTTPD_400_BAD_REQUEST,
+                        "config password must be 8-63 characters, letters, digits or symbols, "
+                        "no spaces");
     }
     esp_err_t set = creds_config_set(cfg);
     if (set != ESP_OK) {
       ESP_LOGE(TAG, "storing the config password failed: %s", esp_err_to_name(set));
-      http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "could not save, try again");
-      return ESP_FAIL;
+      return http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "could not save, try again");
     }
   }
   esp_err_t err = net_save_creds(ssid, pass);
@@ -192,8 +186,7 @@ static esp_err_t save_form(httpd_req_t *req, creds_check_t result, const char *b
     // The config password of a first setup is stored by now: a retry must send it.
     const char *msg = first ? "Wi-Fi not saved, try again; the config password you typed is set"
                             : "could not save, try again";
-    http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, msg);
-    return ESP_FAIL;
+    return http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, msg);
   }
   ESP_LOGI(TAG, "saved creds for '%s', rebooting to connect", ssid);
   httpd_resp_sendstr(req, "saved, rebooting\n");

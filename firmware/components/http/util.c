@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include "auth.h"
+#include "json_escape.h"
 #include "pass_queue.h"
 
 static const char *status_line(httpd_err_code_t code) {
@@ -34,19 +35,17 @@ static const char *status_line(httpd_err_code_t code) {
 
 esp_err_t http_error(httpd_req_t *req, httpd_err_code_t code, const char *msg) {
   char body[160];
+  char text[sizeof(body) - sizeof("{\"error\":\"\"}") + 1];
+  json_escape(text, sizeof(text), msg);
   int n = 0;
-  bufappend(body, &n, sizeof(body), "{\"error\":\"");
-  for (const char *p = msg ? msg : ""; *p && n < (int) sizeof(body) - 4; p++) {
-    if (*p == '"' || *p == '\\') {
-      body[n++] = '\\';
-    }
-    body[n++] = (unsigned char) *p < 0x20 ? ' ' : *p;
-  }
-  body[n] = '\0';
-  bufappend(body, &n, sizeof(body), "\"}");
+  bufappend(body, &n, sizeof(body), "{\"error\":\"%s\"}", text);
   httpd_resp_set_status(req, status_line(code));
   httpd_resp_set_type(req, HTTPD_TYPE_JSON);
-  return httpd_resp_send(req, body, n);
+  esp_err_t sent = httpd_resp_send(req, body, n);
+  if (sent != ESP_OK || req->content_len > HTTP_DRAIN_MAX) {
+    return ESP_FAIL;
+  }
+  return ESP_OK;
 }
 
 static esp_err_t open_guarded(httpd_req_t *req);

@@ -144,148 +144,119 @@ static bool store(httpd_req_t *req, const char *screen, const char *key, const c
   return false;
 }
 
-// Body: {"screen","values":{key:value,...}}.
-static esp_err_t config_post(httpd_req_t *req) {
-  // Require a JSON content type. A cross-site POST with this type needs a CORS
-  // preflight, which this server never allows: a second wall behind sign-in.
+// The body of POST /config, NUL-terminated, or NULL after answering the request. A
+// cross-site POST with a JSON content type needs a CORS preflight, which this server
+// never allows: a second wall behind sign-in.
+static char *config_body(httpd_req_t *req) {
   char ctype[32] = {0};
   if (httpd_req_get_hdr_value_str(req, "Content-Type", ctype, sizeof(ctype)) != ESP_OK ||
       strncmp(ctype, "application/json", 16) != 0) {
     http_error(req, HTTPD_400_BAD_REQUEST, "need application/json");
-    return ESP_FAIL;
+    return NULL;
   }
   int most = CONFIG_BODY_MIN + plugins_count() * CONFIG_BODY_PER_PLUGIN;
   if (req->content_len <= 0 || req->content_len > most) {
     http_error(req, HTTPD_400_BAD_REQUEST, "bad length");
-    return ESP_FAIL;
+    return NULL;
   }
   char *body = malloc(req->content_len + 1);
   if (!body) {
     http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "oom");
-    return ESP_FAIL;
+    return NULL;
   }
   if (!recv_exact(req, body, req->content_len)) {
     free(body);
     http_error(req, HTTPD_400_BAD_REQUEST, "recv");
-    return ESP_FAIL;
+    return NULL;
   }
   body[req->content_len] = '\0';
-  // Every value is checked against the schema.
-  cJSON *root = cJSON_Parse(body);
-  free(body);
+  return body;
+}
 
-  // {"enabled":[id,...]} adds or removes screens: replaces the enabled list
-  // with the given ids, keeping only ones that exist.
-  cJSON *enabled = cJSON_GetObjectItem(root, "enabled");
-  if (cJSON_IsArray(enabled)) {
-    cJSON *keep = cJSON_CreateArray();
-    cJSON *e = NULL;
-    cJSON_ArrayForEach(e, enabled) {
-      if (cJSON_IsString(e) && screen_index(e->valuestring) >= 0) {
-        cJSON_AddItemToArray(keep, cJSON_CreateString(e->valuestring));
-      }
+// {"enabled":[id,...]} replaces the enabled list with the given ids, keeping only
+// ones that exist.
+static esp_err_t post_enabled(httpd_req_t *req, cJSON *enabled) {
+  cJSON *keep = cJSON_CreateArray();
+  cJSON *e = NULL;
+  cJSON_ArrayForEach(e, enabled) {
+    if (cJSON_IsString(e) && screen_index(e->valuestring) >= 0) {
+      cJSON_AddItemToArray(keep, cJSON_CreateString(e->valuestring));
     }
-    char *text = cJSON_PrintUnformatted(keep);
-    cJSON_Delete(keep);
-    if (!text) {
-      cJSON_Delete(root);
-      http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "oom");
-      return ESP_FAIL;
-    }
-    esp_err_t e2 = screen_enabled_store(text);
-    cJSON_free(text);
-    cJSON_Delete(root);
-    if (e2 != ESP_OK) {
-      ESP_LOGE(TAG, "store the screens: %s", esp_err_to_name(e2));
-      http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR,
-                 e2 == ESP_ERR_NVS_NOT_ENOUGH_SPACE ? "space" : "store failed");
-      return ESP_FAIL;
-    }
-    screen_enabled_changed();
-    httpd_resp_sendstr(req, "saved\n");
-    return ESP_OK;
   }
-
-  // {"night":{...}} replaces the night profile; the UI loop applies it within a
-  // second.
-  cJSON *night = cJSON_GetObjectItem(root, "night");
-  if (night) {
-    night_profile_t profile;
-    if (!night_from_json(night, &profile)) {
-      cJSON_Delete(root);
-      http_error(req, HTTPD_400_BAD_REQUEST, "bad night profile");
-      return ESP_FAIL;
-    }
-    cJSON_Delete(root);
-    if (!night_store(&profile)) {
-      http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "store failed");
-      return ESP_FAIL;
-    }
-    httpd_resp_sendstr(req, "saved\n");
-    return ESP_OK;
+  char *text = cJSON_PrintUnformatted(keep);
+  cJSON_Delete(keep);
+  if (!text) {
+    return http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "oom");
   }
-
-  // {"temp_offset":°C} sets the temperature calibration; the next reading has it.
-  cJSON *offset = cJSON_GetObjectItem(root, "temp_offset");
-  if (offset) {
-    int16_t tenths = 0;
-    bool ok = cJSON_IsNumber(offset) && temp_offset_from_celsius(offset->valuedouble, &tenths);
-    cJSON_Delete(root);
-    if (!ok) {
-      http_error(req, HTTPD_400_BAD_REQUEST, "bad temp_offset");
-      return ESP_FAIL;
-    }
-    if (!sensors_set_temp_offset(tenths)) {
-      http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "store failed");
-      return ESP_FAIL;
-    }
-    httpd_resp_sendstr(req, "saved\n");
-    return ESP_OK;
+  esp_err_t stored = screen_enabled_store(text);
+  cJSON_free(text);
+  if (stored != ESP_OK) {
+    ESP_LOGE(TAG, "store the screens: %s", esp_err_to_name(stored));
+    bool full = stored == ESP_ERR_NVS_NOT_ENOUGH_SPACE;
+    return http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, full ? "space" : "store failed");
   }
+  screen_enabled_changed();
+  httpd_resp_sendstr(req, "saved\n");
+  return ESP_OK;
+}
 
-  // {"active":"<id>"} shows that screen now and remembers the choice.
-  cJSON *active = cJSON_GetObjectItem(root, "active");
-  if (cJSON_IsString(active)) {
-    int idx = screen_index(active->valuestring);
-    if (idx < 0) {
-      cJSON_Delete(root);
-      http_error(req, HTTPD_400_BAD_REQUEST, "unknown screen");
-      return ESP_FAIL;
-    }
-    if (!screen_switch(idx)) {
-      cJSON_Delete(root);
-      http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "busy");
-      return ESP_FAIL;
-    }
-    bool stored = store(req, "sys", "active", active->valuestring);
-    cJSON_Delete(root);
-    if (!stored) {
-      return ESP_FAIL;  // shown now, but the next boot goes back; the error says so
-    }
-    httpd_resp_sendstr(req, "saved\n");
-    return ESP_OK;
+// {"night":{...}} replaces the night profile; the UI loop applies it within a second.
+static esp_err_t post_night(httpd_req_t *req, cJSON *night) {
+  night_profile_t profile;
+  if (!night_from_json(night, &profile)) {
+    return http_error(req, HTTPD_400_BAD_REQUEST, "bad night profile");
   }
+  if (!night_store(&profile)) {
+    return http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "store failed");
+  }
+  httpd_resp_sendstr(req, "saved\n");
+  return ESP_OK;
+}
 
-  cJSON *id = cJSON_GetObjectItem(root, "screen");
-  cJSON *values = cJSON_GetObjectItem(root, "values");
-  // The values are checked against a copy of the plugin's manifest and stored under the
-  // id they were checked against.
+// {"temp_offset":°C} sets the temperature calibration; the next reading has it.
+static esp_err_t post_temp_offset(httpd_req_t *req, cJSON *offset) {
+  int16_t tenths = 0;
+  if (!cJSON_IsNumber(offset) || !temp_offset_from_celsius(offset->valuedouble, &tenths)) {
+    return http_error(req, HTTPD_400_BAD_REQUEST, "bad temp_offset");
+  }
+  if (!sensors_set_temp_offset(tenths)) {
+    return http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "store failed");
+  }
+  httpd_resp_sendstr(req, "saved\n");
+  return ESP_OK;
+}
+
+// {"active":"<id>"} shows that screen now and remembers the choice.
+static esp_err_t post_active(httpd_req_t *req, const char *id) {
+  int idx = screen_index(id);
+  if (idx < 0) {
+    return http_error(req, HTTPD_400_BAD_REQUEST, "unknown screen");
+  }
+  if (!screen_switch(idx)) {
+    return http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "busy");
+  }
+  if (!store(req, "sys", "active", id)) {
+    return ESP_FAIL;  // shown now, but the next boot goes back; the error says so
+  }
+  httpd_resp_sendstr(req, "saved\n");
+  return ESP_OK;
+}
+
+// {"screen":"<id>","values":{key:value,...}}: the values are checked against a copy of
+// the plugin's manifest and stored under the id they were checked against.
+static esp_err_t post_values(httpd_req_t *req, cJSON *id, cJSON *values) {
   int idx = cJSON_IsString(id) ? screen_index(id->valuestring) : -1;
   int len = 0;
   char *manifest = idx >= 0 ? plugins_manifest(idx, &len) : NULL;
   if (!manifest || !cJSON_IsObject(values)) {
     plugins_free(manifest);
-    cJSON_Delete(root);
-    http_error(req, HTTPD_400_BAD_REQUEST, "unknown screen");
-    return ESP_FAIL;
+    return http_error(req, HTTPD_400_BAD_REQUEST, "unknown screen");
   }
   cJSON *v = NULL;
   cJSON_ArrayForEach(v, values) {
     if (!cJSON_IsString(v) || !manifest_value_ok(manifest, len, v->string, v->valuestring)) {
       plugins_free(manifest);
-      cJSON_Delete(root);
-      http_error(req, HTTPD_400_BAD_REQUEST, "bad value");
-      return ESP_FAIL;
+      return http_error(req, HTTPD_400_BAD_REQUEST, "bad value");
     }
   }
   plugins_free(manifest);
@@ -295,19 +266,49 @@ static esp_err_t config_post(httpd_req_t *req) {
     if (!store(req, screen_id, v->string, v->valuestring)) {
       // The values before this one are in flash: let the screen re-read them so
       // what it shows and what GET /config reports agree.
-      cJSON_Delete(root);
       screen_config_changed(idx);
       return ESP_FAIL;
     }
   }
-  cJSON_Delete(root);
   if (!screen_config_changed(idx)) {
     // Stored, but the screen did not re-read it; the same request again applies it.
-    http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "busy");
-    return ESP_FAIL;
+    return http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, "busy");
   }
   httpd_resp_sendstr(req, "saved\n");
   return ESP_OK;
+}
+
+// One body changes one thing: the first of these keys it has decides which.
+static esp_err_t config_apply(httpd_req_t *req, cJSON *root) {
+  cJSON *enabled = cJSON_GetObjectItem(root, "enabled");
+  if (cJSON_IsArray(enabled)) {
+    return post_enabled(req, enabled);
+  }
+  cJSON *night = cJSON_GetObjectItem(root, "night");
+  if (night) {
+    return post_night(req, night);
+  }
+  cJSON *offset = cJSON_GetObjectItem(root, "temp_offset");
+  if (offset) {
+    return post_temp_offset(req, offset);
+  }
+  cJSON *active = cJSON_GetObjectItem(root, "active");
+  if (cJSON_IsString(active)) {
+    return post_active(req, active->valuestring);
+  }
+  return post_values(req, cJSON_GetObjectItem(root, "screen"), cJSON_GetObjectItem(root, "values"));
+}
+
+static esp_err_t config_post(httpd_req_t *req) {
+  char *body = config_body(req);
+  if (!body) {
+    return ESP_FAIL;
+  }
+  cJSON *root = cJSON_Parse(body);
+  free(body);
+  esp_err_t e = config_apply(req, root);
+  cJSON_Delete(root);
+  return e;
 }
 
 // GET /screen: the current framebuffer (OLED_FB_BYTES, 4-bit pixels) so the web
@@ -320,8 +321,7 @@ static esp_err_t config_post(httpd_req_t *req) {
 static esp_err_t stats_for(httpd_req_t *req, const char *id) {
   char buf[256];
   if (!plugins_stats(id, buf, sizeof(buf))) {
-    http_error(req, HTTPD_404_NOT_FOUND, "no stats for that plugin");
-    return ESP_FAIL;
+    return http_error(req, HTTPD_404_NOT_FOUND, "no stats for that plugin");
   }
   httpd_resp_set_type(req, "application/json");
   httpd_resp_sendstr(req, buf);
@@ -333,8 +333,7 @@ static esp_err_t stats_get(httpd_req_t *req) {
   char id[24] = {0};
   if (httpd_req_get_url_query_str(req, query, sizeof(query)) != ESP_OK ||
       httpd_query_key_value(query, "id", id, sizeof(id)) != ESP_OK) {
-    http_error(req, HTTPD_400_BAD_REQUEST, "need ?id=");
-    return ESP_FAIL;
+    return http_error(req, HTTPD_400_BAD_REQUEST, "need ?id=");
   }
   return stats_for(req, id);
 }
@@ -350,14 +349,12 @@ static esp_err_t screen_get(httpd_req_t *req) {
                       httpd_query_key_value(query, "id", id, sizeof(id)) == ESP_OK;
   int idx = want_preview ? screen_index(id) : screen_shown();
   if (want_preview && idx < 0) {
-    http_error(req, HTTPD_400_BAD_REQUEST, "unknown screen");
-    return ESP_FAIL;
+    return http_error(req, HTTPD_400_BAD_REQUEST, "unknown screen");
   }
   const char *error = NULL;
   preview_t *p = screen_preview(idx, !want_preview, &error);
   if (!p) {
-    http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, error);
-    return ESP_FAIL;
+    return http_error(req, HTTPD_500_INTERNAL_SERVER_ERROR, error);
   }
   char led[16];
   if (p->led_on) {

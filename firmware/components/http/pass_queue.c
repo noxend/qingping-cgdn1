@@ -108,8 +108,7 @@ void pass_queue_start(void) {
 
 static esp_err_t busy(httpd_req_t *req) {
   httpd_resp_set_hdr(req, "Retry-After", "1");
-  http_error(req, HTTP_503_BUSY, "checking other passwords, try again in a second");
-  return ESP_FAIL;
+  return http_error(req, HTTP_503_BUSY, "checking other passwords, try again in a second");
 }
 
 // The live entry of the address first in line, or -1.
