@@ -7,7 +7,7 @@ import os
 import subprocess
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../plugins/sdk"))
 from wasm_section import without_section  # noqa: E402
 
 plugins, mods = sys.argv[1], sys.argv[2]

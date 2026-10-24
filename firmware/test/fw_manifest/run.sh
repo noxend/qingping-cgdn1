@@ -12,11 +12,10 @@
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 FW=$(cd "$HERE/../.." && pwd)
-IDF=${IDF_PATH:-$HOME/Library/Caches/esphome/idf/frameworks/5.5.5}
-C=$IDF/components
+# shellcheck source=../lib.sh
+source "$HERE/../lib.sh"
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
-CACHE=${TMPDIR:-/tmp}/cgdn1-host-mbedtls
 
 IMAGE=${1:-}
 if [[ -z "$IMAGE" ]]; then
@@ -29,14 +28,7 @@ if [[ -z "$IMAGE" || ! -f "$IMAGE" ]]; then
   exit 1
 fi
 
-# IDF's mbedtls with its default config, built once per machine (shared with web_manifest).
-if [[ ! -f $CACHE/done ]]; then
-  mkdir -p "$CACHE"
-  for f in "$C"/mbedtls/mbedtls/library/*.c; do
-    cc -c -O1 -w -I"$C/mbedtls/mbedtls/include" -I"$C/mbedtls/mbedtls/library" "$f" -o "$CACHE/$(basename "$f" .c).o"
-  done
-  touch "$CACHE/done"
-fi
+build_mbedtls
 
 cp -R "$HERE/../web_manifest/stub" "$WORK/stub"
 cp "$FW"/components/net/{fw_manifest,signed_envelope}.{c,h} "$FW/components/net/web_manifest.h" "$WORK/stub/"
@@ -46,5 +38,6 @@ cd "$WORK"
 curl -fsS -A "Mozilla/5.0 fw_manifest test" "https://cgdn1.swithy.com/manifest.json?t=$(date +%s)" -o webchannel.json
 openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out other.pem 2>/dev/null
 node "$HERE/make_releases.mjs" "$FW/../tools/publish_fw.mjs" "$IMAGE"
-cc -O1 -w -Istub -I"$C/mbedtls/mbedtls/include" -I"$C/json/cJSON" harness.c stub/signed_envelope.c "$C/json/cJSON/cJSON.c" "$CACHE"/*.o -o harness
+cc -O1 -w -Istub -I"$C/mbedtls/mbedtls/include" -I"$C/json/cJSON" harness.c \
+  stub/signed_envelope.c "$C/json/cJSON/cJSON.c" "$MBEDTLS_CACHE"/*.o -o harness
 ./harness

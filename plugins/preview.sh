@@ -44,5 +44,10 @@ status=0
 (cd "$FRAMES" && "$BUILD/preview" "$MODULE" . "$@") || status=$?
 
 # The frames as PNG, four times the panel's 160 x 128 so they read on a screen.
-python3 -I -B "$HERE/preview/to_png.py" "$FRAMES"
+python3 -I -B "$HERE/preview/frames.py" "$FRAMES" 4
+for png in "$FRAMES"/[123]-*.png; do
+  if [[ -f $png ]]; then
+    echo "$png"
+  fi
+done
 exit "$status"
