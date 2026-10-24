@@ -37,6 +37,19 @@ void oled_compose_init(oled_compose_t *c);
 // frame `fb`, composed as `c` says.
 void oled_compose_column(const uint8_t *fb, int col, const oled_compose_t *c, uint8_t *out);
 
+// Panel B (lcd_id != 1) takes 1 bit per pixel, page addressed: 20 pages of 128
+// bytes, each byte 8 stacked panel rows with bit 0 on top, page p holding rows
+// 8p..8p+7.
+#define OLED_PAGES 20
+#define OLED_PAGE_BYTES 128
+
+// Sets the bits of streamed column `col` (0..127) in `pages` (OLED_PAGES *
+// OLED_PAGE_BYTES) from that column as composed for panel A (`line`, from
+// oled_compose_column); a pixel at any level above 0 is lit. Panel B holds the
+// column at byte 127 - col of each page: the stock firmware fills both panels from
+// one buffer and streams it to panel A last column first.
+void oled_compose_pages(const uint8_t *line, int col, uint8_t *pages);
+
 // The orbit offset at position `step` (0..OLED_ORBIT_STEPS-1): a walk around the
 // square's perimeter, one pixel per step, so consecutive positions differ by one
 // pixel and the walk closes on itself.

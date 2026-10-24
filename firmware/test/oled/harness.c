@@ -300,6 +300,42 @@ static void test_profile_bounds(void) {
   check(!night_profile_ok(&p), "another version accepted");
 }
 
+// Panel B: the stock refresh for panel A (oled_drive_refresh_gram's lcd_id == 1
+// branch, 0x400f1410 in the stock image) expands one 1 bit buffer of 20 pages x 128
+// bytes into 4 bit columns, buffer column 127 streamed first, row r in nibble r of
+// the column (low nibble = even row), lit pixels at level 15; its panel B branch
+// streams the same buffer page by page. So packing the expanded columns back for
+// panel B must give the buffer again. The buffer is pseudo random.
+static void test_pages(void) {
+  uint8_t buffer[OLED_PAGES * OLED_PAGE_BYTES];
+  srand(1);
+  for (size_t i = 0; i < sizeof(buffer); i++) {
+    buffer[i] = (uint8_t) rand();
+  }
+  uint8_t pages[OLED_PAGES * OLED_PAGE_BYTES];
+  memset(pages, 0xA5, sizeof(pages));
+  for (int stream = 0; stream < H; stream++) {
+    int column = OLED_PAGE_BYTES - 1 - stream;
+    uint8_t line[COL_BYTES] = {0};
+    for (int page = 0; page < OLED_PAGES; page++) {
+      for (int bit = 0; bit < 8; bit++) {
+        if (buffer[page * OLED_PAGE_BYTES + column] & (1 << bit)) {
+          line[page * 4 + bit / 2] |= (uint8_t) (0x0F << ((bit & 1) * 4));
+        }
+      }
+    }
+    oled_compose_pages(line, stream, pages);
+  }
+  check(memcmp(pages, buffer, sizeof(pages)) == 0, "panel B pages repack the stock buffer");
+
+  // A dim pixel is lit too: level 1 at panel row 9 of streamed column 0.
+  uint8_t line[COL_BYTES] = {0};
+  line[4] = 0x10;
+  oled_compose_pages(line, 0, pages);
+  check(pages[1 * OLED_PAGE_BYTES + 127] == 0x02, "panel B lights a level 1 pixel");
+  check(pages[0 * OLED_PAGE_BYTES + 127] == 0x00, "panel B leaves the page above dark");
+}
+
 int main(void) {
   draw_test_frame();
   test_flip();
@@ -309,6 +345,7 @@ int main(void) {
   test_night_levels();
   test_window();
   test_profile_bounds();
+  test_pages();
   if (failures) {
     printf("%d failure(s)\n", failures);
     return 1;

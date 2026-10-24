@@ -13,11 +13,13 @@
 #include "crash_log.h"
 #include "creds.h"
 #include "dev_switches.h"
+#include "factory_record.h"
 #include "fw_manifest.h"
 #include "fw_update.h"
 #include "heap_internal.h"
 #include "json_escape.h"
 #include "net.h"
+#include "oled.h"
 #include "rollback.h"
 #include "screen.h"
 #include "stall_watch.h"
@@ -33,8 +35,9 @@
 // sign-in, the first setup and the address to open after it. Signed in: slot and
 // Wi-Fi state, the offered update, the progress of an install, a rolled back version,
 // the auto update option, and the diagnostics: reset reason, uptime, signal, channel,
-// how often and why the router was lost, the last PBKDF2 time ("cfg_ms"), and the
-// last crash.
+// how often and why the router was lost, the last PBKDF2 time ("cfg_ms"), the
+// factory record's serial and lcd_id ("" and -1 without one) with the panel driven
+// ("A" or "B", drivers/oled.h), and the last crash.
 #define PUBLIC_FORMAT                                                                              \
   "{\"api\":%d,\"fw\":\"%s\",\"cfg\":%s,\"signed_in\":%s,\"ip\":\"%s\",\"host\":\"%s\","           \
   "\"wifi_fail\":\"%s\""
@@ -133,6 +136,12 @@ static void diag_report(char *buf, int *n, int cap, const net_stats_t *ns) {
   bufappend(buf, n, cap, ",\"btn\":{\"armed\":%s,\"level\":%d,\"clicks\":%d,\"holds\":%d",
             btn.armed ? "true" : "false", btn.level, btn.clicks, btn.holds);
   bufappend(buf, n, cap, ",\"longs\":%d}", btn.longs);
+  // The serial passed the record's shape check (letters and digits only).
+  factory_record_t record;
+  bool have_record = factory_record_get(&record);
+  bufappend(buf, n, cap, ",\"serial\":\"%s\",\"lcd_id\":%d,\"panel\":\"%s\"",
+            have_record ? record.serial : "", have_record ? record.lcd_id : -1,
+            oled_panel() == OLED_PANEL_B ? "B" : "A");
 }
 
 esp_err_t api_status_get(httpd_req_t *req) {
@@ -163,7 +172,7 @@ esp_err_t api_status_get(httpd_req_t *req) {
   // Every append is bounded: the longest answer (a 32-byte SSID of control bytes, 6
   // bytes each escaped, all seven stacks, the button counts, a crash with 8 frames, the
   // watchdog and panic marks, 240 bytes of update notes, the address and a rolled back
-  // version) is about 2030 bytes and a truncated one is still a string.
+  // version) is about 2090 bytes and a truncated one is still a string.
   web_manifest_t wm;
   const char *web_version = web_manifest_get(&wm) ? wm.version : "";
   bufappend(buf, &n, sizeof(buf), STATUS_FORMAT, run->label, joined ? "connected" : "not connected",

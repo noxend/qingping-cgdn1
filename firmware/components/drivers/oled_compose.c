@@ -43,6 +43,21 @@ void oled_compose_column(const uint8_t *fb, int col, const oled_compose_t *c, ui
   }
 }
 
+void oled_compose_pages(const uint8_t *line, int col, uint8_t *pages) {
+  int byte = OLED_PAGE_BYTES - 1 - col;
+  for (int page = 0; page < OLED_PAGES; page++) {
+    uint8_t bits = 0;
+    for (int bit = 0; bit < 8; bit++) {
+      int row = page * 8 + bit;
+      uint8_t level = (line[row / 2] >> ((row & 1) * 4)) & 0x0F;
+      if (level) {
+        bits |= (uint8_t) (1 << bit);
+      }
+    }
+    pages[page * OLED_PAGE_BYTES + byte] = bits;
+  }
+}
+
 void oled_orbit_offset(int step, int8_t *dx, int8_t *dy) {
   const int a = OLED_ORBIT_AMPLITUDE;
   const int side = 2 * a;
