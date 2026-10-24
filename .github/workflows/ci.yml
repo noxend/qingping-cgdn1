@@ -70,6 +70,9 @@ jobs:
       - name: wasi-sdk
         run: plugins/get-wasi-sdk.sh
 
+      - name: SDK numbers and structs, module against device
+        run: firmware/test/sdk_abi/run.sh
+
       - name: Standard plugins against the golden frames
         run: firmware/test/plugins/run.sh "$RUNNER_TEMP/frames"
 

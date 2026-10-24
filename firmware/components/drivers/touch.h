@@ -33,6 +33,9 @@ typedef struct {
   unsigned stack_free_min;
 } touch_counts_t;
 
+// ---- For the test hooks only ----------------------------------------------------
+// Nothing in this firmware calls these; the test endpoints of the private cgdn1-dev
+// repository do (see api/test_hooks.h).
 void touch_counts(touch_counts_t *out);
 
 // The ring of samples, read live: entry k (0 = oldest) of n is at (start + k) % TOUCH_LOG.

@@ -36,8 +36,12 @@ int screen_manager_frames_reposted(void);
 // The id of the plugin whose callback is running on the UI loop, or NULL. The SDK
 // keys settings by it.
 const char *screen_manager_current_id(void);
-// Asks the UI loop to draw the shown screen again (after a probe used the panel).
-void screen_manager_redraw_shown(void);
 
 // GET /config, POST /config, GET /screen, GET /plugin/stats and GET /alerts.
 esp_err_t screen_http_register(httpd_handle_t srv);
+
+// ---- For the test hooks only ----------------------------------------------------
+// Nothing in this firmware calls these; the test endpoints of the private cgdn1-dev
+// repository do (see api/test_hooks.h).
+// Asks the UI loop to draw the shown screen again (after a probe used the panel).
+void screen_manager_redraw_shown(void);

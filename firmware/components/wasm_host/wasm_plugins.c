@@ -5,6 +5,7 @@
 #include <string.h>
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "wasm_abi.h"
 #include "wasm_module.h"
 
 static const char *TAG = "plugins";
@@ -296,6 +297,10 @@ static void deliver_net(int i, const core_net_result_t *net) {
   uint32_t argv[2] = {(uint32_t) net->status, len};
   call(i, WASM_FN_ON_NET, 2, argv);
 }
+
+_Static_assert(CORE_EV_SHOW == WASM_EV_SHOW && CORE_EV_HIDE == WASM_EV_HIDE &&
+                   CORE_EV_TIMER == WASM_EV_TIMER,
+               "plugins_event passes the event type on as it is");
 
 void plugins_event(int i, const core_event_t *ev) {
   if (ev->type == CORE_EV_NET) {
