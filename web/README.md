@@ -16,12 +16,12 @@ It reaches the browser two ways:
 
 ```bash
 npm install                   # at the repository root; web is an npm workspace
-npm run build                 # Vite single-file -> web/dist/index.html (everything inlined)
-gzip -9 -c web/dist/index.html > firmware/components/api/app.html.gz
+npm run embed                 # Vite single-file build, gzipped into firmware/components/api/app.html.gz
 ```
 
 `firmware/components/api/CMakeLists.txt` embeds `app.html.gz`. It is committed so the firmware
-builds without Node; regenerate it with the commands above after changing the app.
+builds without Node. Run `npm run embed` in every change to the app; CI runs `npm run embed:check`
+and fails when the committed file does not match web/.
 
 ## Without the device
 
