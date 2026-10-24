@@ -186,6 +186,10 @@ Driving it so that it does not whine (found on hardware, matches the stock `oled
   fan is off. Neither pin changed the panel hum, which came from CS handling (above). The stock
   configures both as outputs at boot and raises GPIO13; the firmware does the same when it starts
   the PM sensor (`firmware/components/sensors/pm_sensor.c`).
+- A software restart (`esp_restart`, an OTA, rst `SW_CPU_RESET`) does not reset GPIO outputs: GPIO13
+  and GPIO18 keep their levels into the next firmware, which then runs with the PM sensor and its
+  fan powered whether it reads the sensor or not. Only a power cycle or a firmware that drives
+  GPIO13 low turns them off.
 - The residual sound with display and LED on is faint, audible only at the ear.
 - `GET /oled?c=..` (raw command bytes), `?reset=1`, `?flip=N`, `?led=0|1`, `?test=1|0` and
   `GET /gpio?pin=13|18&v=0|1` are token gated research probes. They are not in the firmware: a
@@ -220,11 +224,11 @@ its record overwritten and gets panel A.
 
 From the per-port config table read by `platform_i2c_init`:
 
-| Port | SCL | SDA | Note |
-|---|---|---|---|
-| 0 | GPIO27 | GPIO26 | hardware I2C |
-| 1 | GPIO14 | GPIO12 | hardware I2C |
-| soft | GPIO15 | GPIO16 | software I2C, not active (SCL 15 is the OLED CS) |
+| Port | SCL | SDA | Clock | Note |
+|---|---|---|---|---|
+| 0 | GPIO27 | GPIO26 | 20 kHz | hardware I2C |
+| 1 | GPIO14 | GPIO12 | 400 kHz | hardware I2C |
+| soft | GPIO15 | GPIO16 | 200 kHz | software I2C, not active (SCL 15 is the OLED CS) |
 
 Device map, from an on-device I2C scan (7-bit addresses):
 
