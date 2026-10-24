@@ -176,6 +176,19 @@ function treeDirty() {
   return execFileSync("git", git, { encoding: "utf8" }).trim() !== "";
 }
 
+// The nm type of api_test_hooks_register: W is test_hooks.c's weak default, any strong
+// definition comes from a test component, whatever that component is called.
+function hookType(elf) {
+  const out = execFileSync("xtensa-esp32-elf-nm", [elf], { encoding: "utf8" });
+  for (const line of out.split("\n")) {
+    const fields = line.trim().split(/\s+/);
+    if (fields.at(-1) === "api_test_hooks_register") {
+      return fields.at(-2);
+    }
+  }
+  return "missing";
+}
+
 // null when the image is a release build, else why it is not.
 function build() {
   // An empty EXTRA_COMPONENT_DIRS drops a test component a cached configure kept.
@@ -188,6 +201,10 @@ function build() {
   const description = readFileSync(join(FW, "build", "project_description.json"), "utf8");
   if (JSON.parse(description).build_components.includes("test_hooks")) {
     return "the build has the test_hooks component (cgdn1-dev)";
+  }
+  const hook = hookType(join(FW, "build", "cgdn1.elf"));
+  if (hook !== "W") {
+    return `api_test_hooks_register is ${hook} in nm, not W: the image has test endpoints`;
   }
   return null;
 }
