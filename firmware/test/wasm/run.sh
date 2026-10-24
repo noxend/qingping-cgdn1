@@ -41,8 +41,6 @@ python3 -I -B "$HERE/expected_rate.py" "$NBU"
 cd "$OUT"
 status=0
 "$BUILD/harness" "$MODS" "$NBU" "$FW/test/plugins/data" || status=$?
-for pgm in "$OUT"/*.pgm; do
-  sips -s format png "$pgm" --out "${pgm%.pgm}.png" >/dev/null && rm "$pgm"
-done
+python3 -I -B "$PLUGINS/preview/frames.py" "$OUT"
 echo "frames in $OUT"
 exit "$status"

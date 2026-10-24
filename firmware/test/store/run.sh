@@ -12,23 +12,14 @@
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 FW=$(cd "$HERE/../.." && pwd)
+# shellcheck source=../lib.sh
+source "$HERE/../lib.sh"
 PLUGINS=$(cd "$FW/../plugins" && pwd)
-IDF=${IDF_PATH:-$HOME/Library/Caches/esphome/idf/frameworks/5.5.5}
-C=$IDF/components
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
-CACHE=${TMPDIR:-/tmp}/cgdn1-host-mbedtls
 OLD=80ccca1
 
-# IDF's mbedtls with its default config, built once per machine (shared with web_manifest).
-if [[ ! -f $CACHE/done ]]; then
-  mkdir -p "$CACHE"
-  for f in "$C"/mbedtls/mbedtls/library/*.c; do
-    obj="$CACHE/$(basename "$f" .c).o"
-    cc -c -O1 -w -I"$C/mbedtls/mbedtls/include" -I"$C/mbedtls/mbedtls/library" "$f" -o "$obj"
-  done
-  touch "$CACHE/done"
-fi
+build_mbedtls
 
 "$PLUGINS/build.sh" "$PLUGINS/standard/clock" "$WORK/clock.wasm" >/dev/null
 mkdir -p "$WORK/old"
@@ -43,7 +34,7 @@ cc -O1 -w -std=gnu11 -I"$HERE/stub" -I"$FW/components/system" -I"$FW/components/
   -I"$FW/components/wasm_host/include" -I"$C/mbedtls/mbedtls/include" \
   "$HERE/harness.c" "$HERE/fake_nvs.c" "$FW/components/wasm_host/wasm_store.c" \
   "$FW/components/wasm_host/manifest.c" "$FW/components/wasm_host/json_scan.c" \
-  "$FW/components/wasm_host/wasm_binary.c" "$CACHE"/*.o -c
+  "$FW/components/wasm_host/wasm_binary.c" "$MBEDTLS_CACHE"/*.o -c
 # The older store, its public names prefixed so it links beside this one.
 renames=()
 for name in store_err_code store_id_ok store_init store_parse store_check store_module_matches \
@@ -58,5 +49,5 @@ cc -O1 -w -std=gnu11 "${renames[@]}" -I"$WORK/old" -I"$HERE/stub" -I"$FW/compone
   -c "$HERE/old_writer.c" -o old_writer.o
 cc -c -O1 -w -I"$C/json/cJSON" "$C/json/cJSON/cJSON.c" -o cJSON.o
 cc harness.o fake_nvs.o wasm_store.o manifest.o json_scan.o wasm_binary.o old_store.o \
-  old_writer.o cJSON.o "$CACHE"/*.o -o harness
+  old_writer.o cJSON.o "$MBEDTLS_CACHE"/*.o -o harness
 ./harness

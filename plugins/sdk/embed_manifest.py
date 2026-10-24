@@ -13,11 +13,13 @@ Usage: embed_manifest.py [--no-check] <module.wasm> <plugin.json> <plugin_wasm.h
 """
 
 import json
+import os
 import re
 import sys
 
-SECTION = b"cgdn1.plugin"
-CUSTOM = 0
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from wasm_section import encode_section  # noqa: E402
+
 # The device's rules (components/wasm_host/manifest.c), text lengths in bytes of UTF-8 per
 # language.
 NAME_MAX = 47
@@ -49,18 +51,6 @@ CATEGORIES = (
 )
 FIELDS = ("id", "name", "description", "category", "version", "hosts", "params")
 PARAM_TYPES = ("select", "text", "number", "toggle")
-
-
-def leb(n):
-    out = bytearray()
-    while True:
-        byte = n & 0x7F
-        n >>= 7
-        if n:
-            out.append(byte | 0x80)
-        else:
-            out.append(byte)
-            return bytes(out)
 
 
 def sdk_version(header):
@@ -259,9 +249,8 @@ def main():
         raise SystemExit(
             f"{manifest} is {len(payload)} bytes as JSON; the device takes {SECTION_MAX}"
         )
-    body = leb(len(SECTION)) + SECTION + payload
     with open(module, "ab") as f:
-        f.write(bytes([CUSTOM]) + leb(len(body)) + body)
+        f.write(encode_section(payload))
 
 
 if __name__ == "__main__":
