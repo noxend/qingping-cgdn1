@@ -42,12 +42,13 @@ void auth_session_token(httpd_req_t *req, char out[SESSION_TOKEN_BUF]);
 // text lives in a static buffer until the answer is sent: one HTTP task.
 void auth_set_cookie(httpd_req_t *req, const char *token);
 
-// The diagnostics and test endpoints (/touch, /oled, /gpio, /i2c).
+// The diagnostics endpoints, and the test endpoints of the private cgdn1-dev repository
+// (/touch, /oled, /gpio, /i2c; see api/test_hooks.h).
 // They need a session or the password, unless DEV_OPEN_DIAGNOSTICS is 1 in secrets.h
 // (development only: it lets anyone on the network drive the panel, the LED and the
 // pins).
 bool auth_diag_allowed(httpd_req_t *req);
-bool auth_diag_request(httpd_req_t *req);
+bool auth_diag_request(httpd_req_t *req);  // the test endpoints only
 
 // The names this server answers to: the mDNS host (without ".local") and the setup
 // AP's address. The station's own IP is read at request time.

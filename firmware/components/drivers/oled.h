@@ -16,14 +16,6 @@ void oled_clear(void);
 // level 0 (off) .. 15 (full).
 void oled_pixel(int x, int y, uint8_t level);
 void oled_flush(void);
-// Raw controller commands (DC = 0). The panel takes some of these as
-// one-byte commands even after a 0x81, so a stray value can shift or flip the
-// picture; oled_reset() is the way back.
-void oled_command(const uint8_t *bytes, size_t len);
-// Hardware reset, the verified init stream, then redraw the framebuffer.
-void oled_reset(void);
-// Orientation 0..3 (bit 0 mirrors x, bit 1 mirrors y), applied immediately.
-void oled_set_flip(uint8_t flip);
 
 // Burn-in protection, applied when a frame is streamed; the framebuffer and the
 // web mirror keep the picture as drawn.
@@ -59,6 +51,17 @@ void oled_frame_end(void);
 void oled_render_to(uint8_t *buf);
 void oled_render_done(void);
 
+// ---- For the test hooks only ----------------------------------------------------
+// Nothing in this firmware calls these; the test endpoints of the private cgdn1-dev
+// repository do (see api/test_hooks.h).
+// Raw controller commands (DC = 0). The panel takes some of these as
+// one-byte commands even after a 0x81, so a stray value can shift or flip the
+// picture; oled_reset() is the way back.
+void oled_command(const uint8_t *bytes, size_t len);
+// Hardware reset, the verified init stream, then redraw the framebuffer.
+void oled_reset(void);
+// Orientation 0..3 (bit 0 mirrors x, bit 1 mirrors y), applied immediately.
+void oled_set_flip(uint8_t flip);
 // Calibration picture for finding which part of the panel RAM the glass shows:
 // frame on the outermost pixels, ticks every 10 px (long every 50), a centre
 // cross and solid corner marks of different sizes. Research probe.
