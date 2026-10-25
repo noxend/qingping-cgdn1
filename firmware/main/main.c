@@ -20,6 +20,7 @@
 #include "esp_ota_ops.h"
 #include "api.h"
 #include "auth.h"
+#include "battery.h"
 #include "button.h"
 #include "creds.h"
 #include "dev_switches.h"
@@ -100,15 +101,70 @@ static bool update_pending(void) {
   return true;
 }
 
+// show() posts the message; the UI loop draws it within show_ms, before the rail goes.
+static void shut_down(const char *reason, void (*show)(void), int show_ms) {
+  show();
+  sensors_power_off();
+  vTaskDelay(pdMS_TO_TICKS(show_ms));
+  s_stayed_on = !system_power_off(reason, button_pressed);
+  screen_manager_display_off();
+}
+
 static void power_off(const char *reason) {
   if (update_pending()) {
     return;
   }
-  screen_manager_powering_off();
-  sensors_power_off();
-  vTaskDelay(pdMS_TO_TICKS(100));  // the UI loop draws it before the rail goes
-  s_stayed_on = !system_power_off(reason, button_pressed);
-  screen_manager_display_off();
+  shut_down(reason, screen_manager_powering_off, 100);
+}
+
+// On battery the stock firmware powers off below 7 % of its table, about 3.3 V
+// (docs/hardware.md); left running, the board drains the cell further. Starting
+// needs more: Wi-Fi start pulls a cell resting near 3.3 V under it.
+#define BATTERY_OFF_MV 3300
+#define BATTERY_START_MV 3400
+#define BATTERY_NO_READING_MV 2500  // the stock's floor: at or under it, a failed read
+#define BATTERY_LOW_READS 3         // in a row, one per pass of the main loop (10 s)
+#define LOW_BATTERY_SHOW_MS 3000
+
+static bool s_display_ok;
+
+// Before Wi-Fi: on battery, a flat cell or a brownout restart powers off, so a weak
+// cell gets one brownout at most instead of a restart loop. A pending update does
+// not hold it: the power cut rolls the update back, a cheaper loss than the cell.
+static void battery_start_check(void) {
+  battery_t b = battery_read();
+  bool flat = b.mv > BATTERY_NO_READING_MV && b.mv < BATTERY_START_MV;
+  bool brownout = esp_reset_reason() == ESP_RST_BROWNOUT;
+  ESP_LOGI(TAG, "battery %d mV, usb %d, charging %d", b.mv, b.usb, b.charging);
+  if (b.usb || !(flat || brownout)) {
+    return;
+  }
+  ESP_LOGW(TAG, "low battery at start (%s): powering off", brownout ? "brownout" : "flat");
+  if (s_display_ok) {
+    text_show_message("Low battery");
+  }
+  vTaskDelay(pdMS_TO_TICKS(LOW_BATTERY_SHOW_MS));
+  if (!system_power_off("battery", button_pressed)) {
+    power_latch_hold();  // USB came in meanwhile: start, and keep the cell when it goes
+  }
+}
+
+static int s_low_reads;
+
+// Not after a power off that kept the rail: the board is dark on USB already.
+static void battery_watch(void) {
+  if (s_stayed_on) {
+    return;
+  }
+  battery_t b = battery_read();
+  bool low = !b.usb && b.mv > BATTERY_NO_READING_MV && b.mv < BATTERY_OFF_MV;
+  s_low_reads = low ? s_low_reads + 1 : 0;
+  if (s_low_reads < BATTERY_LOW_READS) {
+    return;
+  }
+  s_low_reads = 0;
+  ESP_LOGW(TAG, "low battery: %d mV", b.mv);
+  shut_down("battery", screen_manager_low_battery, LOW_BATTERY_SHOW_MS);
 }
 
 // A board that stayed on has restarted at the hold already.
@@ -140,6 +196,7 @@ void app_main(void) {
   console_start();
   heap_large_install();  // before any TLS session or JSON
   creds_seed_entropy();  // before touch and Wi-Fi: it borrows the SAR ADC
+  battery_init();
 
   bool pending_verify = rollback_boot();
   const esp_partition_t *running = esp_ota_get_running_partition();
@@ -152,7 +209,8 @@ void app_main(void) {
 
   system_nvs_init();
   factory_record_load();  // before settings_init, which takes the record's flash
-  if (oled_init(panel_type()) == ESP_OK) {
+  s_display_ok = oled_init(panel_type()) == ESP_OK;
+  if (s_display_ok) {
     text_init();
     text_show_message("Starting");  // until the first screen, a few seconds on
   } else {
@@ -163,6 +221,7 @@ void app_main(void) {
 
   settings_init();
   system_last_off_load();
+  battery_start_check();  // its power off notes the reason in the settings
   creds_init();
   session_init();
   web_manifest_init();
@@ -183,12 +242,13 @@ void app_main(void) {
 
   stall_watch_start();
   rollback_settle(pending_verify, gate_healthy);
-  // Confirmed image: keep the server alive if it ever failed to come up, and power
-  // off when the menu asks.
+  // Confirmed image: keep the server alive if it ever failed to come up, power off
+  // when the menu asks, and on a low battery.
   while (true) {
     if (xSemaphoreTake(s_menu_power_off, pdMS_TO_TICKS(10000))) {
       power_off("menu");
     }
     api_start();
+    battery_watch();
   }
 }
