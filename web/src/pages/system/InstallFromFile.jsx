@@ -1,13 +1,33 @@
 import { useRef, useState } from "react";
-import { Button } from "@heroui/react";
+import { Button, ProgressBar, toast } from "@heroui/react";
 import { useSWRConfig } from "swr";
 
-import { devicePost } from "./devicePost";
 import { Fold } from "./Fold";
 import { ActionTip } from "../../components/ActionTip";
-import { pausePolling } from "../../lib/api";
+import { accepted } from "../../lib/answer";
+import { pausePolling, TIMEOUT_MS, upload } from "../../lib/api";
 import { notify } from "../../lib/notify";
 import { useT } from "../../i18n";
+
+// A loading toast while the firmware goes up, its bar showing the share sent.
+function uploadToast(t) {
+  const title = t("system.uploading");
+  const id = toast(title, { isLoading: true, timeout: 0 });
+
+  const show = (share) => {
+    const bar = (
+      <ProgressBar aria-label={title} value={Math.round(100 * share)} className="mt-1 w-48">
+        <ProgressBar.Track>
+          <ProgressBar.Fill />
+        </ProgressBar.Track>
+      </ProgressBar>
+    );
+
+    toast.update(id, title, { isLoading: true, description: bar });
+  };
+
+  return { show, close: () => toast.close(id) };
+}
 
 // A .bin from a build, for whoever builds the firmware: folded away from the owner's path.
 export function InstallFromFile({ busy }) {
@@ -21,19 +41,27 @@ export function InstallFromFile({ busy }) {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  const upload = async () => {
+  const send = async () => {
     setUploading(true);
     pausePolling(true);
+    const progress = uploadToast(t);
+    progress.show(0);
 
     try {
       const firmware = await file.arrayBuffer();
-      if (await devicePost(t, "/ota", firmware, t("system.uploadFailed"))) {
+      const response = await upload("/ota", firmware, {
+        timeoutMs: TIMEOUT_MS.firmware,
+        onProgress: progress.show,
+      });
+
+      if (await accepted(t, response, t("system.uploadFailed"))) {
         notify(t("system.uploadedRebooting"));
       }
     } catch {
       // As with the network save, the reply can be lost to the reboot.
       notify(t("system.uploadedRebooting"));
     } finally {
+      progress.close();
       pausePolling(false);
       reloadAll(() => true);
       setUploading(false);
@@ -60,7 +88,7 @@ export function InstallFromFile({ busy }) {
           variant="secondary"
           isDisabled={!file || busy}
           isPending={uploading}
-          onPress={upload}
+          onPress={send}
         >
           {t("system.upload")}
         </Button>

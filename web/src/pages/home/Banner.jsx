@@ -1,4 +1,4 @@
-const FRAME_CLASS = "overflow-hidden rounded-[0.875rem] bg-surface ring-1 ring-border";
+import { Card } from "@heroui/react";
 
 const GRID_CLASS = [
   "grid items-center gap-8 p-7 sm:p-10",
@@ -9,7 +9,7 @@ const GRID_CLASS = [
 // and the primary actions.
 export function Banner({ kicker, title, children, actions, media }) {
   return (
-    <div className={FRAME_CLASS}>
+    <Card className="overflow-hidden p-0">
       <div className={GRID_CLASS}>
         <div className="min-w-0">
           {kicker && <div className="text-sm text-muted">{kicker}</div>}
@@ -22,6 +22,6 @@ export function Banner({ kicker, title, children, actions, media }) {
 
         <div>{media}</div>
       </div>
-    </div>
+    </Card>
   );
 }

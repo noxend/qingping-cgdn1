@@ -4,6 +4,7 @@ import { Button } from "@heroui/react";
 import { AddressLinks } from "./AddressLinks";
 import { Fold } from "./Fold";
 import { NetworkForm } from "./NetworkForm";
+import { InfoList, InfoRow } from "../../components/InfoRow";
 import { Notice } from "../../components/Notice";
 import { StatusChip } from "../../components/StatusChip";
 import { TitledCard } from "../../components/TitledCard";
@@ -60,9 +61,18 @@ function Joining({ name, status, onRetry }) {
 function ChangeNetwork({ status, editing, setEditing, onSaved }) {
   const t = useT();
   const fail = status?.wifi_fail;
+  const connected = status?.wifi === "connected";
 
   return (
     <div className="flex flex-col gap-4">
+      {connected && status.host && (
+        <InfoList>
+          <InfoRow label={t("system.address")}>
+            <AddressLinks status={status} />
+          </InfoRow>
+        </InfoList>
+      )}
+
       {fail && (
         <Notice
           status="warning"

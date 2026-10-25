@@ -11,6 +11,12 @@ export function LanguageField() {
   const { lang, setLang, t } = useLang();
 
   return (
-    <SelectField label={t("system.language")} options={OPTIONS} value={lang} onChange={setLang} />
+    <SelectField
+      label={t("system.language")}
+      description={t("system.languageHint")}
+      options={OPTIONS}
+      value={lang}
+      onChange={setLang}
+    />
   );
 }

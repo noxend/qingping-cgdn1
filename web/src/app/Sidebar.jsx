@@ -1,5 +1,13 @@
-import { Code, Display, Gear, LayoutCells, ShoppingBag, Tag } from "@gravity-ui/icons";
-import { Link } from "@heroui/react";
+import {
+  ArrowUpFromLine,
+  Code,
+  Display,
+  Gear,
+  LayoutCells,
+  ShoppingBag,
+  Tag,
+} from "@gravity-ui/icons";
+import { Card, Chip, Link } from "@heroui/react";
 
 import { StatusChip } from "../components/StatusChip";
 import { cn } from "../lib/cn";
@@ -14,7 +22,7 @@ function NavItem({ icon: Icon, label, to, count, path, onPick }) {
       aria-current={active ? "page" : undefined}
       onPress={onPick}
       className={cn(
-        "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm no-underline transition-colors",
+        "flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-sm no-underline transition-colors",
         active ? "bg-default text-foreground" : "text-muted hover:bg-surface hover:text-foreground",
       )}
     >
@@ -37,17 +45,27 @@ function countByCategory(catalog) {
   return Object.entries(counts);
 }
 
-function DeviceStatus({ status }) {
+function DeviceStatus({ status, onPick }) {
   const t = useT();
   const connected = status.wifi === "connected";
 
   return (
-    <div className="mt-auto rounded-lg bg-surface px-3 py-3 ring-1 ring-border">
-      <StatusChip color={connected ? "success" : "warning"}>
-        {connected ? t("status.connected") : t("status.setupAp")}
-      </StatusChip>
-      <p className="mt-1 text-xs text-muted">{t("system.version", { version: status.fw })}</p>
-    </div>
+    <Card className="mt-auto">
+      <Card.Content>
+        <StatusChip color={connected ? "success" : "warning"}>
+          {connected ? t("status.connected") : t("status.setupAp")}
+        </StatusChip>
+        <p className="mt-1 text-xs text-muted">{t("system.version", { version: status.fw })}</p>
+        {status.update && (
+          <Link href="#/system" className="mt-2 flex no-underline" onPress={onPick}>
+            <Chip color="accent" size="sm" variant="soft">
+              <ArrowUpFromLine width={12} />
+              <Chip.Label>{t("status.update", { version: status.update.version })}</Chip.Label>
+            </Chip>
+          </Link>
+        )}
+      </Card.Content>
+    </Card>
   );
 }
 
@@ -94,7 +112,7 @@ export function Sidebar({ path, catalog, screens, status, onPick }) {
         {status?.dev && <NavItem {...item} icon={Code} label={t("nav.dev")} to="/dev" />}
       </div>
 
-      {status && <DeviceStatus status={status} />}
+      {status && <DeviceStatus status={status} onPick={onPick} />}
     </div>
   );
 }

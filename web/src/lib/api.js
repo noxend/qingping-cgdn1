@@ -27,6 +27,33 @@ export async function request(path, { timeoutMs = TIMEOUT_MS.action, ...init } =
   return response;
 }
 
+// request() for a body whose upload progress the page shows, which fetch cannot report:
+// onProgress gets the share sent so far, from 0 to 1.
+export function upload(path, body, { timeoutMs, onProgress }) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", path);
+    xhr.timeout = timeoutMs;
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        onProgress(e.loaded / e.total);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 401) {
+        signedOut();
+      }
+
+      resolve(new Response(xhr.responseText || null, { status: xhr.status }));
+    };
+
+    xhr.onerror = xhr.ontimeout = () => reject(new Error(`${path}: no answer`));
+    xhr.send(body);
+  });
+}
+
 export function postForm(path, fields) {
   return request(path, {
     method: "POST",

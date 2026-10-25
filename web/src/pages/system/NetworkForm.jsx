@@ -4,6 +4,7 @@ import {
   Button,
   ComboBox,
   Description,
+  EmptyState,
   FieldError,
   Form,
   Input,
@@ -27,10 +28,17 @@ function wifiPasswordOk(value) {
   return bytes === 0 || (bytes >= 8 && bytes <= 63) || /^[0-9a-fA-F]{64}$/.test(value);
 }
 
-function NetworkPicker({ label, nets, scanning, onScan, value, onChange }) {
+// The list scans when it first opens; Scan looks again.
+function NetworkPicker({ label, nets, scanning, onScan, onOpen, value, onChange }) {
   const t = useT();
 
-  const found = nets.length ? t("system.found", { n: nets.length }) : t("system.notScanned");
+  // A typed name that matches none of the networks found leaves the list empty too.
+  const empty = () => (
+    <EmptyState className="px-3 py-4 text-center">
+      {scanning && t("system.scanning")}
+      {!scanning && (nets.length ? t("system.noMatch") : t("system.noNetsHint"))}
+    </EmptyState>
+  );
 
   return (
     <ComboBox
@@ -43,6 +51,7 @@ function NetworkPicker({ label, nets, scanning, onScan, value, onChange }) {
       name="ssid"
       variant="secondary"
       onInputChange={onChange}
+      onOpenChange={(open) => open && onOpen()}
       onSelectionChange={(key) => key && onChange(String(key))}
     >
       <Label>{label}</Label>
@@ -54,14 +63,16 @@ function NetworkPicker({ label, nets, scanning, onScan, value, onChange }) {
 
       <ComboBox.Popover>
         <div className="flex items-center justify-between gap-3 border-b border-separator p-2 ps-3">
-          <span className="text-sm text-muted">{found}</span>
+          <span className="text-sm text-muted">
+            {nets.length > 0 && t("system.found", { n: nets.length })}
+          </span>
           <Button size="sm" variant="secondary" isPending={scanning} onPress={onScan}>
             <ArrowsRotateRight />
             {t("system.scan")}
           </Button>
         </div>
 
-        <ListBox>
+        <ListBox renderEmptyState={empty}>
           {nets.map((name) => (
             <ListBox.Item key={name} id={name} textValue={name}>
               {name}
@@ -141,6 +152,7 @@ export function NetworkForm({ status, onSaved }) {
   const [configPassword, setConfigPassword] = useState("");
   // A new device needs no password to scan, so the form opens on a scan.
   const [scanning, setScanning] = useState(firstSetup);
+  const [scanned, setScanned] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // The networks the device sees, or null after a failure, which it shows in a toast.
@@ -151,11 +163,7 @@ export function NetworkForm({ status, onSaved }) {
         return null;
       }
 
-      const found = (await response.json()).nets || [];
-      if (!found.length) {
-        notify(t("system.noNets"), "warning");
-      }
-      return found;
+      return (await response.json()).nets || [];
     } catch {
       notify(t("system.scanFailed"), "danger");
       return null;
@@ -169,7 +177,10 @@ export function NetworkForm({ status, onSaved }) {
           setNets(found);
         }
       })
-      .finally(() => setScanning(false));
+      .finally(() => {
+        setScanning(false);
+        setScanned(true);
+      });
 
   const scan = () => {
     setScanning(true);
@@ -177,6 +188,12 @@ export function NetworkForm({ status, onSaved }) {
   };
 
   // Once per form: a scan knocks the station off its channel for a moment.
+  const openList = () => {
+    if (!scanned && !scanning) {
+      scan();
+    }
+  };
+
   const scanOnOpen = useEffectEvent(() => {
     if (firstSetup) {
       listNets();
@@ -225,6 +242,7 @@ export function NetworkForm({ status, onSaved }) {
         nets={nets}
         scanning={scanning}
         onScan={scan}
+        onOpen={openList}
         value={net}
         onChange={setNet}
       />

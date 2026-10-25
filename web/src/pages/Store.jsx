@@ -1,4 +1,4 @@
-import { Button } from "@heroui/react";
+import { Button, EmptyState } from "@heroui/react";
 
 import { PageTitle } from "../components/PageTitle";
 import { PluginCard } from "../components/PluginCard";
@@ -79,7 +79,7 @@ export function Store({ catalog, screens, query, category, onAdd, isBusy, listCh
       <SectionHeader title={q ? t("store.results") : t("store.all")} count={list.length} />
 
       {list.length === 0 ? (
-        <p className="text-muted">{t("store.none")}</p>
+        <EmptyState className="py-10 text-center">{t("store.none")}</EmptyState>
       ) : (
         <PluginGrid>
           {list.map((s) => (
