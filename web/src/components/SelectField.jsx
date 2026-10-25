@@ -1,14 +1,15 @@
-import { Label, ListBox, Select } from "@heroui/react";
+import { Description, Label, ListBox, Select } from "@heroui/react";
 
 // options: [{ key, label }]
-export function SelectField({ label, options, value, onChange }) {
+export function SelectField({ label, description, options, value, onChange, isDisabled }) {
   return (
-    <Select fullWidth variant="secondary" value={value} onChange={onChange}>
+    <Select fullWidth isDisabled={isDisabled} variant="secondary" value={value} onChange={onChange}>
       <Label>{label}</Label>
       <Select.Trigger>
         <Select.Value />
         <Select.Indicator />
       </Select.Trigger>
+      {description && <Description>{description}</Description>}
       <Select.Popover>
         <ListBox>
           {options.map((option) => (

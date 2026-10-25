@@ -22,6 +22,8 @@
 #include "dns_answer.h"
 #include "factory_reset.h"
 #include "json_escape.h"
+#include "settings.h"
+#include "time_zone.h"
 
 #define NVS_NS FACTORY_WIFI_NS
 
@@ -455,12 +457,49 @@ static void mdns_start(void) {
 // ---- time ---------------------------------------------------------------------
 // The core owns the clock: one time zone for the device and an NTP client started
 // at boot, which retries on its own until the station is up. Plugins read localtime.
-#define TZ_KYIV "EET-2EEST,M3.5.0/3,M10.5.0/4"  // Ukraine, with the EU daylight-saving rules
 #define NTP_SERVER "pool.ntp.org"
+#define TIME_ZONE_RECORD "time_zone"
+
+// Written at boot and by POST /config, read by GET /config: both run before or on the
+// one HTTP server task.
+static char s_time_zone[TIME_ZONE_KEY_MAX] = TIME_ZONE_DEFAULT;
+
+// Another task's localtime_r may parse TZ while setenv rewrites it and get a mixed
+// zone for that one call; its next call parses the new string again.
+static void time_zone_apply(const char *key) {
+  setenv("TZ", time_zone_posix(key), 1);
+  tzset();
+  snprintf(s_time_zone, sizeof(s_time_zone), "%s", key);
+}
+
+const char *net_time_zone(void) {
+  return s_time_zone;
+}
+
+bool net_set_time_zone(const char *key) {
+  if (!time_zone_posix(key)) {
+    return false;
+  }
+  esp_err_t e = settings_blob_set(TIME_ZONE_RECORD, key, strlen(key) + 1);
+  if (e != ESP_OK) {
+    ESP_LOGE(TAG, "time zone store: %s", esp_err_to_name(e));
+    return false;
+  }
+  time_zone_apply(key);
+  return true;
+}
+
+// The stored zone, or the default when there is none or it is not one of the zones.
+static void time_zone_load(void) {
+  char key[TIME_ZONE_KEY_MAX] = "";
+  size_t len = sizeof(key);
+  esp_err_t e = settings_blob_get(TIME_ZONE_RECORD, key, &len);
+  bool usable = e == ESP_OK && time_zone_record_ok(key, len);
+  time_zone_apply(usable ? key : TIME_ZONE_DEFAULT);
+}
 
 static void time_start(void) {
-  setenv("TZ", TZ_KYIV, 1);
-  tzset();
+  time_zone_load();
   esp_sntp_config_t cfg = ESP_NETIF_SNTP_DEFAULT_CONFIG(NTP_SERVER);
   esp_err_t err = esp_netif_sntp_init(&cfg);
   if (err != ESP_OK) {

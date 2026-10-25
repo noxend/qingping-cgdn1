@@ -275,7 +275,12 @@ local network's traffic can take a session; the signature is what keeps a foreig
   at 100 %RH. The System page of the web interface edits it.
 - **Burn-in protection**: a 2 px pixel orbit applied when the frame is flushed, one step every
   60 s, always on.
-- **Time**: SNTP from `pool.ntp.org`, the zone fixed to Kyiv (`net.c`).
+- **Time**: SNTP from `pool.ntp.org`. The time zone is one record in the core settings, a key
+  from the list in `time_zone.c` (host test `test/time_zone/run.sh` checks each POSIX string
+  against the host's zone database and the keys against the web interface's list), read and
+  written as `time_zone` in `GET /config` and `POST /config` (`kyiv` by default). A change sets
+  `TZ` and calls `tzset` at once, so the clock and night mode follow it without a restart. The
+  System page of the web interface edits it.
 
 ## Partitions
 
