@@ -1,7 +1,4 @@
-const FRAME_CLASS = [
-  "overflow-hidden rounded-[20px] ring-1 ring-border",
-  "bg-gradient-to-br from-surface to-background",
-].join(" ");
+const FRAME_CLASS = "overflow-hidden rounded-[0.875rem] bg-surface ring-1 ring-border";
 
 const GRID_CLASS = [
   "grid items-center gap-8 p-7 sm:p-10",
@@ -15,8 +12,10 @@ export function Banner({ kicker, title, children, actions, media }) {
     <div className={FRAME_CLASS}>
       <div className={GRID_CLASS}>
         <div className="min-w-0">
-          {kicker && <p className="text-sm text-muted">{kicker}</p>}
-          <h2 className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">{title}</h2>
+          {kicker && <div className="text-sm text-muted">{kicker}</div>}
+          <h2 className="mt-2 text-[1.75rem] font-semibold tracking-tight lg:text-[2rem]">
+            {title}
+          </h2>
           <div className="mt-4">{children}</div>
           {actions && <div className="mt-7 flex flex-wrap gap-3">{actions}</div>}
         </div>
