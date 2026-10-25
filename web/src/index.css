@@ -53,6 +53,21 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Radius follows depth: cards 14 px, the controls inside them 10 px, chips stay round. */
+@layer components {
+  .card {
+    border-radius: 0.875rem;
+  }
+
+  .button {
+    border-radius: var(--radius);
+  }
+}
+
+:root {
+  --field-radius: var(--radius);
+}
+
 /* Tabular figures so live counts do not jitter as they change. */
 .tnum {
   font-variant-numeric: tabular-nums;

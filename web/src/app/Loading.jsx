@@ -20,9 +20,9 @@ export function Loading({ failed }) {
 
   return (
     <div className="flex flex-col gap-4" aria-busy="true">
-      <Skeleton className="h-10 w-64 rounded-lg" />
-      <Skeleton className="h-5 w-96 max-w-full rounded-lg" />
-      <Skeleton className="mt-6 h-64 rounded-xl" />
+      <Skeleton className="h-9 w-56 rounded-md" />
+      <Skeleton className="h-4 w-80 max-w-full rounded-md" />
+      <Skeleton className="mt-6 h-72 rounded-[0.875rem]" />
     </div>
   );
 }
