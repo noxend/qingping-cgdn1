@@ -24,6 +24,10 @@ small plugin, set up from a web interface.
 It does not connect to Apple Home, Home Assistant or the Qingping app yet (HomeKit is planned to be
 looked at, with a Home Assistant API as the fallback); the full list is in [using.md](docs/using.md#what-it-does-not-do).
 
+If you only need the readings in your own system, the stock firmware may be enough: it can send them
+to your own MQTT server, see Qingping's
+[Private Access](https://developer.qingping.co/private/access-instructions). No case to open.
+
 ## Documentation
 
 For owners of the device:
