@@ -19,10 +19,8 @@ Each screen is a plugin. The ones that come with the firmware:
 | [PM10](../plugins/standard/pm10/README.md) | coarse particles, µg/m³ | six colours, the stock firmware's levels |
 | [Air raid alerts](../plugins/standard/alerts/README.md) | map of Ukraine's regions under alert | red or amber for the region you pick |
 
-![The screens](images/screens/all.png)
-
-The last frame is the [NBU exchange rate](../plugins/examples/nbu/README.md) example, which you
-install yourself.
+The [NBU exchange rate](../plugins/examples/nbu/README.md) example is not built in; you install
+it yourself.
 
 ### The touch strip
 
