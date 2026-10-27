@@ -48,6 +48,12 @@ The button on the back:
 In the first minute after a firmware update, power off does nothing, from the button or the menu,
 until the new version has confirmed itself.
 
+### Low battery
+
+On battery, when the cell drops under 3.3 V the screen shows "Low battery" and the device powers
+off. It does not start on battery while the cell is under 3.4 V. Plug in USB power to use it, and
+leave it on USB to charge.
+
 ### The menu
 
 The menu closes by itself after 30 seconds without a touch. Its rows:
@@ -171,7 +177,7 @@ laptops from the last ten years have it.
 - No smart home connection yet: no Apple Home (HomeKit), no Home Assistant, no Qingping or Mi Home
   app. HomeKit support is planned to be looked at later; if it does not work out, the fallback is
   an API for Home Assistant.
-- No battery level and no charging screen: the charge controller's protocol is not decoded yet.
+- No battery level on the screen or in the web interface, and no charging screen.
 - The device password can be changed only by a factory reset and a new setup.
 - `cgdn1.local` needs multicast DNS; on networks that block it, use the IP address.
 - The password and the session cookie travel over plain HTTP on your local network.
