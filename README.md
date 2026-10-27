@@ -35,7 +35,7 @@ For owners of the device:
   without it there is no known way back to Apple Home or the Qingping app.
 - [Using the device](docs/using.md): screens, the touch strip, the power button and its menu, the
   web interface, updates, factory reset.
-- [Release notes 1.0.0](docs/release-notes/1.0.0.md)
+- [Releases](https://github.com/noxend/qingping-cgdn1/releases): what changed in each version.
 
 The screens:
 
