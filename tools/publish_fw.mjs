@@ -198,6 +198,12 @@ function build() {
   if (m !== null && !["0", "OFF", ""].includes(m[1])) {
     return "the build directory is configured with DEV_BUILD on";
   }
+  // sdkconfig.defaults applies only when firmware/sdkconfig is missing, so a stale local one
+  // builds an image without PSRAM, where the plugins never start.
+  const header = readFileSync(join(FW, "build", "config", "sdkconfig.h"), "utf8");
+  if (!/^#define CONFIG_SPIRAM 1$/m.test(header)) {
+    return "the build has no PSRAM: regenerate the stale firmware/sdkconfig";
+  }
   const description = readFileSync(join(FW, "build", "project_description.json"), "utf8");
   if (JSON.parse(description).build_components.includes("test_hooks")) {
     return "the build has the test_hooks component (cgdn1-dev)";
