@@ -30,7 +30,7 @@ right; the board silkscreen marks 38 next to the rightmost pad.
 | G (TP33) | EN | 3 | continuity to pin 3 |
 | E, F | unknown | | no continuity to GND |
 
-Letters are ours, see [images/pin-numbers.svg](images/pin-numbers.svg). The silkscreen names of
+Letters are ours, see [images/pads.jpg](images/pads.jpg). The silkscreen names of
 B, C and D are TP32, TP21 and TP23 in some order; the photo is too blurry to pair them.
 
 In the pad row only pin 38 beeps to the module shield, which matches the datasheet: pins 20…38

@@ -151,7 +151,7 @@ board are the battery and the connectors to the rest of the device.
 
 The pads are next to the ESP32 module. The letters are the names this guide uses for them.
 
-![Pad letters on the board](images/pin-numbers.svg)
+![Pad letters on the board](images/pads.jpg)
 
 | Pad | What it is | Where |
 |---|---|---|
