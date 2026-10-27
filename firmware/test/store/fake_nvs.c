@@ -23,7 +23,7 @@ typedef struct {
 } item_t;
 
 static item_t s_items[MAX_ITEMS];
-static int s_pages = 48;           // nvs_cfg: 0x30000
+static int s_pages = 32;           // nvs_cfg: 0x20000
 static int s_used;                 // live entries
 static int s_tail = PAGE_ENTRIES;  // free entries left on the page being written
 static char s_namespaces[16][16];

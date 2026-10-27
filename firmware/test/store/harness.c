@@ -299,7 +299,7 @@ static void check_capacity(void) {
       kept++;
     }
   }
-  printf("  %d plugins of %zu B fit in the 192 KB partition\n", kept, len);
+  printf("  %d plugins of %zu B fit in the 128 KB partition\n", kept, len);
   check(last == STORE_ERR_SPACE && kept > 8,
         "more than eight fit, then the storage refuses: space");
   check(installed_count() == kept, "every install the room check allowed was written");

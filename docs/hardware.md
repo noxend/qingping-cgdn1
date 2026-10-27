@@ -113,8 +113,11 @@ Per-device data, key names read with ESP-IDF's `nvs_tool.py` (values not printed
   `cleargrass` (Qingping), and the Wi-Fi driver's saved network.
 
 The case's side sticker carries the HomeKit setup QR and the eight-digit setup code under a house
-icon. The custom firmware's `nvs_cfg` (0x3D0000, 0x30000) covers `test`, `factory_nvs`,
-`nvs_keys` and `minvs`; its init may erase them, and a factory reset does.
+icon. The custom firmware leaves alone the factory record (a read-only `factory_rec` partition at
+0x3D2000) and everything from 0x3F3000 (`factory_nvs`, `nvs_keys`, `minvs`); its `nvs_cfg` sits
+at 0x3D3000, 0x20000, over the rest of the stock `test` app. Before 1.0.0-rc26 `nvs_cfg` was at
+0x3D0000, 0x30000, over all of them; a unit flashed then may have lost them, and a factory reset
+did.
 
 Reading the dump: `read_flash 0 0x400000` at 115200 baud, about 379 s. 921600 broke off halfway and
 left the stub at that speed; 460800 failed with "Invalid head of packet" on these wires.
@@ -129,10 +132,13 @@ esptool.py --chip esp32 --port /dev/cu.usbserial-0001 --baud 115200 --before no_
 Back from stock to the custom firmware over the pads, done the same day without a full rebuild:
 write a saved copy of this firmware's first 64 KB (bootloader, partition table, nvs, otadata,
 phy_init) at 0x0, the app at 0x10000 and `nvs_cfg` at 0x3D0000, then erase otadata (0xd000, 0x2000)
-so the bootloader starts ota_0. A normal `idf.py flash` is the plain way. Writing the saved
-`nvs_cfg` replaces the factory record at 0x3D2000 (Display, below) before this firmware can keep
-it; unless the saved `nvs` already holds the copy, the unit then drives panel A whatever its
-`lcd_id`. `idf.py flash` leaves that flash alone.
+so the bootloader starts ota_0. A normal `idf.py flash` is the plain way. That was the table before
+1.0.0-rc26, whose saved `nvs_cfg` replaces the factory record at 0x3D2000 (Display, below); from
+rc26 on, `idf.py flash` writes nothing from 0x3D0000 to 0x3D3000 or from 0x3F3000 on. A unit on
+the older table moved to this one over the pads needs `erase_region 0x3D3000 0x20000` before it
+first boots, or the new `nvs_cfg` mounts the old one's pages, shifted and incomplete; its settings,
+password and plugins start empty either way. Write 0x3D0000-0x3D3000 and 0x3F3000 to the end back
+from the stock backup to bring the record and the HomeKit data back.
 
 ## Display
 
@@ -214,11 +220,11 @@ Factory record, flash 0x3D2000 in the stock `test` partition, read from the main
 `5A`, the unit's MAC (6 bytes), `A5`, erased bytes, at 0x4A the serial's length (`10`) and the
 serial (`S00115100DB006CA`, NUL after it), at 0x5C `FF`, at 0x5D `lcd_id` (`01`). The stock checks
 only the `5A` and picks panel A only for `lcd_id` 1, so a unit restored to stock without its record
-gets panel B's init. The custom firmware's `nvs_cfg` reuses that flash: at boot, before it mounts
-`nvs_cfg`, it reads the record when it still has this shape and keeps the 0x5E bytes on the default
-`nvs` partition (namespace `factory`, key `record`), which a factory reset leaves alone. `GET
-/status` shows `serial`, `lcd_id` and the `panel` driven. A unit that ran an earlier version had
-its record overwritten and gets panel A.
+gets panel B's init. The custom firmware reads it from a read-only `factory_rec` partition over that
+flash and keeps the 0x5E bytes on the default `nvs` partition (namespace `factory`, key `record`),
+which a factory reset leaves alone. Before 1.0.0-rc26 its `nvs_cfg` lay over the record, so a unit
+flashed then reads only that copy, and one that ran a version older than the copy had its record
+overwritten and gets panel A. `GET /status` shows `serial`, `lcd_id` and the `panel` driven.
 
 ## I2C buses
 

@@ -5,9 +5,10 @@
 #include "esp_partition.h"
 #include "nvs.h"
 
-#define PARTITION "nvs_cfg"
-// The copy, on the default NVS partition: the raw bytes, so the record could be
+// The partition over the record. A unit on the table before it has none and uses
+// the copy, on the default NVS partition: the raw bytes, so the record could be
 // written back as it was.
+#define PARTITION "factory_rec"
 #define COPY_NS "factory"
 #define COPY_KEY "record"
 
@@ -21,7 +22,7 @@ static bool read_flash(uint8_t *raw) {
   if (!part) {
     return false;
   }
-  return esp_partition_read(part, FACTORY_RECORD_OFFSET, raw, FACTORY_RECORD_BYTES) == ESP_OK;
+  return esp_partition_read(part, 0, raw, FACTORY_RECORD_BYTES) == ESP_OK;
 }
 
 static bool read_copy(uint8_t *raw) {

@@ -4,10 +4,11 @@
 # over. Neither file is in the repository; they are a unit's own backups.
 # Usage: firmware/test/factory_record/run.sh <stock-full-dump.bin> <nvs_cfg-dump.bin>
 #   stock-full-dump.bin  the whole 4 MB flash read from a unit on the stock firmware
-#   nvs_cfg-dump.bin     0x30000 bytes read at 0x3D0000 from a unit on this firmware
+#   nvs_cfg-dump.bin     0x30000 bytes read at 0x3D0000 from a unit on the table before
+#                        the factory partition, whose nvs_cfg started there
 set -euo pipefail
 if (($# != 2)); then
-  sed -n '5,7p' "$0"
+  sed -n '5,8p' "$0"
   exit 2
 fi
 HERE=$(cd "$(dirname "$0")" && pwd)

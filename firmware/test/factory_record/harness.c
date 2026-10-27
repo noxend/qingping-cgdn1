@@ -7,6 +7,8 @@
 #include "factory_record.h"
 
 #define STOCK_RECORD_AT 0x3D2000L
+// Where the record sat in nvs_cfg on the table before the factory partition.
+#define OLD_NVS_CFG_RECORD_AT 0x2000L
 
 static int failures;
 
@@ -41,7 +43,7 @@ int main(int argc, char **argv) {
     return 2;
   }
   bool read = read_at(argv[1], STOCK_RECORD_AT, stock);
-  read = read && read_at(argv[2], FACTORY_RECORD_OFFSET, ours);
+  read = read && read_at(argv[2], OLD_NVS_CFG_RECORD_AT, ours);
   if (!read) {
     return 2;
   }
