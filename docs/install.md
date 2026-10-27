@@ -10,9 +10,9 @@ wires to test pads next to the ESP32 module (a fifth is optional).
 > [!CAUTION]
 > **Back up the stock firmware before you flash anything (step 7). Without the backup there is no
 > way back.** The chip's memory holds things that belong to your device alone and exist nowhere
-> else: its HomeKit data (setup code, IDs and keys) and Qingping's own settings. This firmware keeps
-> its settings in the same area, so its first start may wipe them and a factory reset wipes them for
-> sure. After that only your own backup brings Apple Home and the Qingping app back. I have written
+> else: its HomeKit data (setup code, IDs and keys) and Qingping's own settings. Part of them sits
+> where this firmware keeps its Wi-Fi network, so its first start may wipe them. After that only
+> your own backup brings Apple Home and the Qingping app back. I have written
 > mine back and the stock firmware ran again (step 12). Keep the file to yourself.
 >
 > The sticker on the side of the case matters too: under its QR code are a HomeKit house icon and
