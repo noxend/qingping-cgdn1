@@ -53,8 +53,7 @@ held to GND and G pulsed to GND, D reads 3.3 V: the ROM bootloader owns UART0 in
 | G, EN | not connected; touched to GND by hand (optional) |
 
 The adapter's 3V3 and +5V stay unconnected; the device runs from its own USB-C or battery. There
-are no buttons: "touched to GND" means pressing the wire's end against the module shield. The
-labels on the wiring picture still say BOOT and RESET for those two.
+are no buttons: "touched to GND" means pressing the wire's end against the module shield.
 
 Soldering: pad B (GND) sits on the ground plane, which pulls the heat away, so solder does not wet
 it at the temperature that works on the other pads. Add flux, raise the iron by 20 to 30 °C (about

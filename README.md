@@ -4,6 +4,8 @@ Custom firmware for the Qingping Air Monitor Lite (CGDN1). It replaces the stock
 device's ESP32 and turns its screen into a set of pages you flip through with a finger, each one a
 small plugin, set up from a web interface.
 
+![Sliding a finger along the touch strip flips through the screens](docs/images/device/swipe.gif)
+
 ![The screens](docs/images/screens/all.png)
 
 ![The web interface, light and dark](docs/images/web/themes.png)

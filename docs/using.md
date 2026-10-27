@@ -28,6 +28,8 @@ install yourself.
 
 - **Slide** a finger along the strip: the next screen.
 
+![Sliding along the strip](images/device/swipe.gif)
+
 In the menu the strip moves and chooses: sliding right moves down the list, sliding left moves up,
 and a tap chooses.
 
@@ -55,6 +57,8 @@ off. It does not start on battery while the cell is under 3.4 V. Plug in USB pow
 leave it on USB to charge.
 
 ### The menu
+
+![The menu](images/device/menu.jpg)
 
 The menu closes by itself after 30 seconds without a touch. Its rows:
 

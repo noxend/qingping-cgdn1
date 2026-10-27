@@ -330,6 +330,9 @@ address `http://10.47.0.1/` as text.
 4. Save. The device restarts and joins your network. The page and the device screen show the
    address to open next: `http://cgdn1.local/` and the IP address.
 
+<img src="images/install/13-wifi-qr.jpg" width="300" alt="A phone camera on the QR code, offering to join the setup network">
+<img src="images/install/14-setup-page.png" width="300" alt="The setup page on the phone">
+
 Phones and laptops older than about ten years may not be able to join the setup network.
 
 The rest, the screens, the menu and the web interface, is in [using.md](using.md).
