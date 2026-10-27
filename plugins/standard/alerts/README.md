@@ -39,7 +39,8 @@ as Shahed and other drones. The map itself is grey and does not tell the two apa
 - `map.bin`: the map, one byte per pixel: the region's index, or a border, the outline or
   outside. Borders belong to neither region.
 - `gen_alert_map.py` makes `map.bin` from [geoBoundaries](https://www.geoboundaries.org) UKR ADM1
-  (OpenStreetMap, ODbL) clipped to the [Natural Earth](https://www.naturalearthdata.com) 50m
+  (data © OpenStreetMap contributors, [ODbL](https://www.openstreetmap.org/copyright), so
+  `map.bin` is under the ODbL too) clipped to the [Natural Earth](https://www.naturalearthdata.com) 50m
   coastline (public domain): the regions simplified together so shared borders stay shared,
   slivers and stray pixels merged, every line one pixel wide. Run it with
   `uv run plugins/standard/alerts/gen_alert_map.py <adm1.geojson> <ne_50m_land.geojson>`.

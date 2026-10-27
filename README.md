@@ -61,7 +61,20 @@ For developers:
 ## Credits
 
 Air raid alert data: [neptun.in.ua](https://neptun.in.ua). Region boundaries:
-[geoBoundaries](https://www.geoboundaries.org) (OpenStreetMap, ODbL) and
-[Natural Earth](https://www.naturalearthdata.com).
+[geoBoundaries](https://www.geoboundaries.org) and [Natural Earth](https://www.naturalearthdata.com).
+
+The region map in `plugins/standard/alerts/map.bin` contains data © OpenStreetMap contributors,
+available under the [Open Database License](https://www.openstreetmap.org/copyright).
 
 Qingping's stock firmware and flash dumps are not in this repository: they are Qingping's code.
+
+## License
+
+[MIT](LICENSE), except for:
+
+- `plugins/standard/alerts/map.bin`: the Open Database License, as above.
+- Code taken from other projects, which keeps its own license: `firmware/components/u8g2`
+  (BSD-2-Clause), `firmware/components/esp_psram` from ESP-IDF (Apache-2.0),
+  `firmware/components/qrcodegen` (MIT).
+
+This project is not affiliated with or endorsed by Qingping. Qingping is a trademark of its owner.
