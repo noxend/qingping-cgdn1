@@ -49,3 +49,11 @@ as Shahed and other drones. The map itself is grey and does not tell the two apa
 
 `GET /plugin/stats?id=alerts` on the device gives the fetch counters, the last HTTP status, the
 number of regions under alert, and the chosen region with its level.
+
+## Credits
+
+Air raid alert data: [neptun.in.ua](https://neptun.in.ua). Region boundaries:
+[geoBoundaries](https://www.geoboundaries.org) and [Natural Earth](https://www.naturalearthdata.com).
+
+`map.bin` contains data © OpenStreetMap contributors, available under the
+[Open Database License](https://www.openstreetmap.org/copyright).

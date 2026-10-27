@@ -58,21 +58,12 @@ For developers:
 - [Hardware](docs/hardware.md): the board, the test pads, the display, the buses, all reverse
   engineered.
 
-## Credits
-
-Air raid alert data: [neptun.in.ua](https://neptun.in.ua). Region boundaries:
-[geoBoundaries](https://www.geoboundaries.org) and [Natural Earth](https://www.naturalearthdata.com).
-
-The region map in `plugins/standard/alerts/map.bin` contains data © OpenStreetMap contributors,
-available under the [Open Database License](https://www.openstreetmap.org/copyright).
-
-Qingping's stock firmware and flash dumps are not in this repository: they are Qingping's code.
-
 ## License
 
 [MIT](LICENSE), except for:
 
-- `plugins/standard/alerts/map.bin`: the Open Database License, as above.
+- `plugins/standard/alerts/map.bin`: the Open Database License, see
+  [its README](plugins/standard/alerts/README.md#credits).
 - Code taken from other projects, which keeps its own license: `firmware/components/u8g2`
   (BSD-2-Clause), `firmware/components/esp_psram` from ESP-IDF (Apache-2.0),
   `firmware/components/qrcodegen` (MIT).
