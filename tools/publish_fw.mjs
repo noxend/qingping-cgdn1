@@ -316,8 +316,8 @@ async function main() {
   const tmp = mkdtempSync(join(tmpdir(), "publish_fw-"));
   try {
     const manifest = join(tmp, "firmware.json");
-    writeFileSync(manifest, text + "\n", { mode: 0o600 });
-    run("rsync", ["-a", "--chmod=F644", manifest, `${host}:sites/cgdn1/firmware.json`]);
+    writeFileSync(manifest, text + "\n");
+    run("rsync", ["-a", manifest, `${host}:sites/cgdn1/firmware.json`]);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
