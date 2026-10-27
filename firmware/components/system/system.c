@@ -60,6 +60,7 @@ bool system_power_off(const char *reason, bool (*held)(void)) {
 }
 
 void system_power_on(void) {
+  ESP_LOGI(TAG, "power on: restarting");
   settings_blob_set(OFF_KEY, "", 1);
   esp_restart();
 }

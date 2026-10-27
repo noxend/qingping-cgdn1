@@ -165,7 +165,7 @@ static void install(void) {
     fail(esp_err_to_name(err));
     return;
   }
-  ESP_LOGI(TAG, "update %s written, rebooting", m.version);
+  ESP_LOGW(TAG, "update %s written, rebooting", m.version);
   set_state(FW_UPD_REBOOTING, m.size);
   vTaskDelay(pdMS_TO_TICKS(1000));  // lets a /status poll see "rebooting"
   esp_restart();

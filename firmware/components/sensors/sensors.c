@@ -22,6 +22,8 @@ static const char *TAG = "sensors";
 #define CO2_QUIET_TICKS 20  // no CO2 value for this long: restart the SCD40
 #define BUS_RESET_TICKS 30  // nothing on the bus answered for this long: reset it
 #define FIRST_READ_WAIT_MS 500
+// Outdoor air: a reading under it is a sensor that drifted low. The stock shows it as 400.
+#define CO2_FLOOR_PPM 400
 #define PM_FRAMES_BEFORE_VALID 3  // the stock counts its first two frames as warm-up
 #define PM_MISSES_TO_WARN 5       // a missed frame now and then, or the start, is not news
 #define TEMP_OFFSET_KEY "temp_offset"
@@ -192,7 +194,7 @@ static void sampler(void *arg) {
     uint16_t ppm = 0;
     scd4x_result_t r = scd_ready ? scd4x_read(&ppm) : SCD4X_NOT_READY;
     if (r == SCD4X_OK) {
-      store(SENSOR_CO2, (float) ppm);
+      store(SENSOR_CO2, (float) (ppm < CO2_FLOOR_PPM ? CO2_FLOOR_PPM : ppm));
       quiet_ticks = 0;
     } else if (scd_ready && ++quiet_ticks >= CO2_QUIET_TICKS) {
       scd_ready = false;  // it may have reset on its own: stop, wait, start again
