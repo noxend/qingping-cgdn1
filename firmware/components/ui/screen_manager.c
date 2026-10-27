@@ -568,6 +568,7 @@ static void menu_act(menu_action_t action) {
       ESP_LOGW(TAG, "restart ignored: the update is not confirmed yet");
       break;
     }
+    ESP_LOGI(TAG, "restart from the menu");
     text_show_message("Restarting");
     esp_restart();
     break;

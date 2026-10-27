@@ -28,4 +28,5 @@ With no valid reading the screen shows `--`.
 | at or above the red level | red |
 | no reading | off |
 
-Fresh outdoor air is about 400 ppm; above 1000 to 1200 ppm people tend to notice stuffiness.
+Fresh outdoor air is about 400 ppm, and the device never shows less: a lower reading is a sensor
+that drifted low. Above 1000 to 1200 ppm people tend to notice stuffiness.
