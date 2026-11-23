@@ -6,7 +6,7 @@
     "uk": "Карта повітряних тривог України з індикатором по вибраній області"
   },
   "category": "security",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "hosts": ["neptun.in.ua"],
   "params": [
     {
