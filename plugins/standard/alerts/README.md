@@ -48,7 +48,10 @@ as Shahed and other drones. The map itself is grey and does not tell the two apa
 ## Stats
 
 `GET /plugin/stats?id=alerts` on the device gives the fetch counters, the last HTTP status, the
-number of regions under alert, and the chosen region with its level.
+number of regions under alert, the chosen region with its level, and `live`: whether the
+levels are current. The map asks for alerts only while it is the shown screen, so `live`
+is false the rest of the time. An answer more than two minutes old is not drawn or lit
+while the map is hidden, and is dropped when the map is shown again.
 
 ## Credits
 
