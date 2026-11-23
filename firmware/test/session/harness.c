@@ -159,6 +159,12 @@ static bool s_ap_client;
 static char s_saved_ssid[40];
 static char s_set_password[80];
 
+static bool s_update_pending;
+
+bool rollback_pending(void) {
+  return s_update_pending;
+}
+
 bool net_is_ap_client(int sockfd) {
   (void) sockfd;
   return s_ap_client;
@@ -174,7 +180,21 @@ esp_err_t net_save_creds(const char *ssid, const char *pass) {
   return ESP_OK;
 }
 
+static int s_restarts;
+static int s_factory_resets;
+
 void esp_restart(void) {
+  s_restarts++;
+}
+
+// Never returns on the device, so the test only asks for it where it is refused.
+void factory_reset(void (*forget_wifi_driver)(void)) {
+  (void) forget_wifi_driver;
+  s_factory_resets++;
+  abort();
+}
+
+void net_forget_driver_creds(void) {
 }
 
 bool creds_pass_ok(const char *pass) {
@@ -629,6 +649,12 @@ int main(void) {
     http_register_open(NULL, &open[i]);
   }
   http_register(NULL, &closed);
+  const httpd_uri_t device[] = {
+      {.uri = "/reboot", .method = HTTP_POST, .handler = api_reboot_post},
+      {.uri = "/reset", .method = HTTP_POST, .handler = api_reset_post},
+  };
+  http_register(NULL, &device[0]);
+  http_register(NULL, &device[1]);
   auth_set_hosts("cgdn1", "10.47.0.1");
   s_server = pthread_self();
   pass_queue_start();
@@ -802,6 +828,19 @@ int main(void) {
   request(&r, HTTP_POST, "/save", "ssid=office&pass=", own);
   check(status_is(&r, "200") && strcmp(s_saved_ssid, "office") == 0,
         "save, signed in, no password in the form: 200");
+  // The System page's Restart and Factory reset wait for an update's confirmation: a
+  // restart before it rolls the update back.
+  s_update_pending = true;
+  int restarts = s_restarts;
+  request(&r, HTTP_POST, "/reboot", "", own);
+  check(status_is(&r, "409") && s_restarts == restarts,
+        "restart while an update is unconfirmed: 409");
+  request(&r, HTTP_POST, "/reset", "", own);
+  check(status_is(&r, "409") && s_factory_resets == 0,
+        "factory reset while an update is unconfirmed: 409");
+  s_update_pending = false;
+  request(&r, HTTP_POST, "/reboot", "", own);
+  check(status_is(&r, "200") && s_restarts == restarts + 1, "restart once it is confirmed: done");
   request(&r, HTTP_POST, "/scan", "", (opts_t){.origin = "http://evil.example"});
   check(status_is(&r, "403"), "scan from another site's page: 403");
   request(&r, HTTP_POST, "/scan", "", (opts_t){.no_cookie = true});
@@ -955,6 +994,24 @@ int main(void) {
   request(&r, HTTP_POST, "/save", "ssid=home&pass=&token=new-password", ap);
   check(status_is(&r, "200") && strcmp(s_set_password, "new-password") == 0,
         "first setup: save sets the password");
+  s_cfg_set = false;
+  s_set_password[0] = '\0';
+  const opts_t named = {.origin = "http://cgdn1.local", .host = "cgdn1.local", .no_cookie = true};
+  request(&r, HTTP_POST, "/save", "ssid=home&pass=&token=named-password", named);
+  check(status_is(&r, "200") && strcmp(s_set_password, "named-password") == 0,
+        "first setup from the page under its mDNS name: saved");
+  s_cfg_set = false;
+  const opts_t other = {.origin = "http://evil.example", .host = "10.47.0.1", .no_cookie = true};
+  request(&r, HTTP_POST, "/save", "ssid=home&pass=&token=evil-password", other);
+  check(status_is(&r, "403") && !s_cfg_set, "first setup from another site's page: 403");
+  // An update waits for confirmation: saving would restart and roll it back.
+  s_update_pending = true;
+  s_set_password[0] = '\0';
+  s_saved_ssid[0] = '\0';
+  request(&r, HTTP_POST, "/save", "ssid=home&pass=&token=new-password", ap);
+  check(status_is(&r, "409") && !s_cfg_set && s_saved_ssid[0] == '\0',
+        "save while an update is unconfirmed: 409, nothing stored");
+  s_update_pending = false;
   s_cfg_set = false;
   s_ap_client = false;
   request(&r, HTTP_POST, "/scan", "", (opts_t){.no_cookie = true});

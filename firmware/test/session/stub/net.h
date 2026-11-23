@@ -9,3 +9,4 @@ bool net_peer_ipv4(int sockfd, uint32_t *out);
 bool net_is_ap_client(int sockfd);
 const char *net_scan_json(void);
 esp_err_t net_save_creds(const char *ssid, const char *pass);
+void net_forget_driver_creds(void);
