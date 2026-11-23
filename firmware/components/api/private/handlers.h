@@ -27,6 +27,10 @@ esp_err_t api_update_check_post(httpd_req_t *req);  // POST /update/check
 // server.c: whether a test build added its endpoints (test_hooks.h).
 bool api_test_hooks_on(void);
 
+// What a restart asked for before the image is confirmed gets, with a 409: the restart
+// would make the bootloader roll the update back.
+#define UPDATE_PENDING_MSG "the update is still being checked, try again in a minute"
+
 // device.c: the System page's Restart and Factory reset, for a signed-in caller.
 esp_err_t api_reboot_post(httpd_req_t *req);  // POST /reboot
 esp_err_t api_reset_post(httpd_req_t *req);   // POST /reset

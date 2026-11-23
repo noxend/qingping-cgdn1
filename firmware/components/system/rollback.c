@@ -131,6 +131,12 @@ const char *rollback_image_state(void) {
   }
 }
 
+bool rollback_pending(void) {
+  esp_ota_img_states_t st = ESP_OTA_IMG_UNDEFINED;
+  esp_err_t err = esp_ota_get_state_partition(esp_ota_get_running_partition(), &st);
+  return err == ESP_OK && st == ESP_OTA_IMG_PENDING_VERIFY;
+}
+
 int rollback_confirm_ms(void) {
   return s_confirm_ms;
 }

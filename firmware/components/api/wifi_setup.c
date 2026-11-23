@@ -9,6 +9,7 @@
 #include "creds.h"
 #include "net.h"
 #include "pass_queue.h"
+#include "rollback.h"
 #include "util.h"
 
 #define FORM_BODY_MAX 511
@@ -148,6 +149,11 @@ esp_err_t api_scan_post(httpd_req_t *req) {
 static esp_err_t save_form(httpd_req_t *req, creds_check_t result, const char *body) {
   if (!auth_answer(req, result)) {
     return ESP_FAIL;
+  }
+  // Saving ends in a restart; before anything is stored, since a retry repeats it all.
+  if (rollback_pending()) {
+    ESP_LOGW(TAG, "save refused: the update is not confirmed yet");
+    return http_error(req, HTTP_409_CONFLICT, UPDATE_PENDING_MSG);
   }
   bool first = !creds_config_is_set();
   char ssid[NET_SSID_MAX + 1];

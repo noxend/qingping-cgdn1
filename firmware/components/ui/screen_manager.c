@@ -564,7 +564,7 @@ static void menu_act(menu_action_t action) {
     break;
   case MENU_RESTART:
     // Until the image is confirmed a restart rolls the update back, as a power cut does.
-    if (strcmp(rollback_image_state(), "pending") == 0) {
+    if (rollback_pending()) {
       ESP_LOGW(TAG, "restart ignored: the update is not confirmed yet");
       break;
     }
@@ -577,6 +577,10 @@ static void menu_act(menu_action_t action) {
     menu_render();
     break;
   case MENU_FACTORY_RESET:
+    if (rollback_pending()) {
+      ESP_LOGW(TAG, "factory reset ignored: the update is not confirmed yet");
+      break;
+    }
     factory_reset(net_forget_driver_creds);  // does not return
     break;
   case MENU_CLOSE:
