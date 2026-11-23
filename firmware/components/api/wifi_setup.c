@@ -70,14 +70,6 @@ static bool form_value(const char *body, const char *key, char *out, size_t max,
   return true;
 }
 
-// A form post from a page of another origin carries that origin; the device's own
-// pages send http://10.47.0.1 here, and a client without the header is not a browser.
-static bool same_origin_or_none(httpd_req_t *req) {
-  char origin[64] = {0};
-  esp_err_t e = httpd_req_get_hdr_value_str(req, "Origin", origin, sizeof(origin));
-  return e == ESP_ERR_NOT_FOUND || (e == ESP_OK && strcmp(origin, "http://" NET_AP_IP) == 0);
-}
-
 // /scan and /save need sign-in, or the config password in the body's `token`, which
 // the no-script page at /fallback sends. Before one is set (a new device, or after a
 // factory reset) only a client of the setup AP gets in, which needs the AP password
@@ -87,18 +79,16 @@ static bool same_origin_or_none(httpd_req_t *req) {
 // result for next to answer; answers itself for any other refusal. A token only
 // PBKDF2 can tell waits its turn on the hash task, and next runs after it.
 static esp_err_t config_authed(httpd_req_t *req, const char *body, pass_resume_t next) {
+  // The device's own page, under whichever of its names the browser opened it
+  // (10.47.0.1 or cgdn1.local on the setup AP), or a client that is not a browser.
+  if (!auth_origin_ok(req)) {
+    return ESP_FAIL;  // answered with 403
+  }
   if (!creds_config_is_set()) {
     if (!net_is_ap_client(httpd_req_to_sockfd(req))) {
       return http_error(req, HTTPD_403_FORBIDDEN, "no config password yet: use the setup AP");
     }
-    if (!same_origin_or_none(req)) {
-      return http_error(req, HTTPD_403_FORBIDDEN,
-                        "a page of another site cannot set up this device");
-    }
     return next(req, CREDS_OK, body);
-  }
-  if (!auth_origin_ok(req)) {
-    return ESP_FAIL;
   }
   if (auth_signed_in(req)) {
     return next(req, CREDS_OK, body);
