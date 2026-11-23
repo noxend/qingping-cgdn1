@@ -25,6 +25,7 @@ static atomic_bool s_reload;
 static bool s_applied_once;
 static bool s_night_on;
 static int s_orbit_beats;
+static bool s_core_page;
 
 // The stored record, or the default when there is none or it does not pass the
 // bounds. Any task: the settings store takes its own lock.
@@ -76,7 +77,7 @@ static int local_minute(void) {
 static void apply(bool night_on) {
   uint8_t levels[16];
   if (night_on) {
-    night_levels(s_profile.screen_pct, s_profile.screen_off, levels);
+    night_levels(s_profile.screen_pct, s_profile.screen_off && !s_core_page, levels);
     led_set_scale(s_profile.led_pct);
   } else {
     night_levels(100, false, levels);
@@ -84,6 +85,16 @@ static void apply(bool night_on) {
   }
   oled_set_levels(levels);
   ESP_LOGI(TAG, "%s", night_on ? "night on" : "day");
+}
+
+void night_core_page(bool shown) {
+  if (shown == s_core_page) {
+    return;
+  }
+  s_core_page = shown;
+  if (s_applied_once && s_night_on) {
+    apply(true);
+  }
 }
 
 void night_tick(void) {

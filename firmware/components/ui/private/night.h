@@ -15,6 +15,12 @@ void night_init(void);
 // Nothing is applied while the clock has never been set.
 void night_tick(void);
 
+// Tells the night that one of the core's own pages is on the panel, or gone: the
+// device menu, the setup page, a message before a restart or a power off. A night that
+// turns the screen off shows such a page at the night's brightness, since the menu is
+// the way to the setup page and to a power off. UI loop.
+void night_core_page(bool shown);
+
 // The profile as the API shows it: {"enabled","start","end","screen_pct",
 // "screen_off","led_pct"}, times as "HH:MM". The caller deletes it.
 cJSON *night_json(void);

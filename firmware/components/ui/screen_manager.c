@@ -488,6 +488,13 @@ static void menu_touched(void) {
   esp_timer_start_once(s_menu_timer, menu_idle_us(net_has_network()));
 }
 
+// A message of the core's own, shown through a night that turns the screen off. The
+// page is drawn before the night lets it through, so the screen under it never shows.
+static void core_message(const char *text) {
+  text_show_message(text);
+  night_core_page(true);
+}
+
 static void menu_render(void) {
   menu_info_t info = {.version = s_version};
   net_ip(info.ip, sizeof(info.ip));  // written only while the station has one
@@ -502,6 +509,7 @@ static void menu_render(void) {
   net_host(info.host, sizeof(info.host));
   menu_draw(&info);
   oled_flush();
+  night_core_page(true);
 }
 
 static void menu_show(void) {
@@ -546,6 +554,7 @@ static void joined_check(void) {
 
 static void menu_hide(void) {
   menu_close();
+  night_core_page(false);
   atomic_store(&s_menu_owns_finger, false);
   if (s_menu_timer) {
     esp_timer_stop(s_menu_timer);
@@ -569,7 +578,7 @@ static void menu_act(menu_action_t action) {
       break;
     }
     ESP_LOGW(TAG, "restart from the menu");
-    text_show_message("Restarting");
+    core_message("Restarting");
     esp_restart();
     break;
   case MENU_WIFI_SETUP:
@@ -660,9 +669,9 @@ static void handle_display(display_cmd_t cmd) {
   }
   display_set(true);
   if (cmd == DISPLAY_POWERING_OFF) {
-    text_show_message("Powering off");
+    core_message("Powering off");
   } else if (cmd == DISPLAY_LOW_BATTERY) {
-    text_show_message("Low battery");
+    core_message("Low battery");
   }
 }
 
