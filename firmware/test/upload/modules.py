@@ -33,4 +33,8 @@ def embed(name, meta, header=f"{plugins}/sdk/plugin_wasm.h"):
 meta = json.load(open(f"{plugins}/standard/clock/plugin.json"))
 for plugin_id in [f"w{k}" for k in range(64)] + ["broken"]:
     embed(plugin_id, dict(meta, id=plugin_id))
+# A standard plugin as an earlier image carried it, and a user's own module under a
+# standard id.
+embed("clock_earlier", dict(meta, version="0.9.0"))
+embed("pm10_own", dict(meta, id="pm10", version="9.9.9"))
 embed("old", dict(json.load(open(f"{mods}/v1.json")), id="old"), f"{mods}/sdk1.h")

@@ -12,6 +12,7 @@
 #include "heap_internal.h"
 #include "json_out.h"
 #include "manifest.h"
+#include "rollback.h"
 #include "settings.h"
 #include "util.h"
 #include "wasm_binary.h"
@@ -76,6 +77,108 @@ static const standard_t *standard_of(const char *id) {
     }
   }
   return NULL;
+}
+
+// ---- which stored modules came from an image -----------------------------------------------
+// A standard plugin runs from its stored copy, so a firmware update would leave the old
+// module in place. A stored module that some image put there is replaced by this image's
+// copy once the image is confirmed; one the user uploaded under a standard id is theirs
+// and stays. "Some image put it there" is: the list below names it as the image module
+// last installed under that id, or it is one of the modules of 1.0.0, which kept no list.
+
+#define SHA_LEN 32
+#define IMAGE_MODULES_KEY "std_modules"
+#define IMAGE_MODULES_MAX 16
+
+typedef struct {
+  char id[STORE_ID_MAX];
+  uint8_t sha[SHA_LEN];
+} image_module_t;
+
+// The list, read once at boot and kept in step with the store. UI loop only.
+static image_module_t s_image_modules[IMAGE_MODULES_MAX];
+static size_t s_image_module_n;
+
+// The standard modules of 1.0.0, as cgdn1.swithy.com/fw/1.0.0/cgdn1.bin carries them.
+static const uint8_t RELEASE_1_0_0[][SHA_LEN] = {
+    // alerts
+    {0x60, 0x9e, 0xaf, 0xbc, 0x33, 0x4e, 0xda, 0xa1, 0x04, 0x65, 0x44,
+     0x1e, 0xc9, 0xfe, 0xc7, 0x31, 0x3c, 0x0e, 0x29, 0x1a, 0x9a, 0xea,
+     0x72, 0xb4, 0x85, 0x40, 0x1b, 0x23, 0xe4, 0xd7, 0xf8, 0xd6},
+    // clock
+    {0x75, 0x4e, 0x6a, 0x95, 0x9e, 0x6c, 0xc5, 0xb6, 0x04, 0x03, 0x0a,
+     0x2b, 0x53, 0xda, 0xe2, 0x2e, 0xf0, 0x4c, 0xdc, 0x00, 0x13, 0xd6,
+     0x44, 0x5b, 0x99, 0xa2, 0xc5, 0x73, 0xd7, 0x3d, 0xa7, 0x6c},
+    // co2
+    {0x27, 0x51, 0xcf, 0x36, 0xa0, 0x65, 0xa1, 0xc5, 0x78, 0x3f, 0x56,
+     0x8e, 0xfd, 0xcf, 0x3a, 0x19, 0x93, 0x70, 0xe9, 0x0f, 0xc6, 0x16,
+     0x09, 0xf6, 0x30, 0xfb, 0xe6, 0x70, 0x08, 0x9f, 0x4c, 0x6c},
+    // humidity
+    {0xc0, 0xb5, 0x21, 0xd8, 0x7e, 0xd0, 0xbb, 0x18, 0x2f, 0x91, 0xe1,
+     0x3b, 0x02, 0x84, 0xdb, 0x93, 0xe3, 0x43, 0xd5, 0x09, 0xc6, 0xd7,
+     0x98, 0x1f, 0x4c, 0x7f, 0xee, 0x68, 0xf9, 0xb4, 0xd8, 0x91},
+    // pm10
+    {0x25, 0x55, 0xec, 0x8a, 0x19, 0x12, 0x63, 0x3f, 0x29, 0x4b, 0xe8,
+     0xfe, 0x51, 0x89, 0xcf, 0xb5, 0xdf, 0x2e, 0x60, 0xef, 0x75, 0x58,
+     0x12, 0x62, 0x02, 0x2d, 0x5c, 0xd2, 0x2c, 0x8e, 0xe4, 0x98},
+    // pm25
+    {0xfb, 0x0f, 0x16, 0xf2, 0x08, 0x46, 0x2e, 0x8a, 0x91, 0x90, 0x50,
+     0xf1, 0x0b, 0x68, 0xcb, 0x06, 0x29, 0x11, 0xcd, 0x7b, 0x48, 0x35,
+     0x90, 0x8d, 0x9f, 0x24, 0xfb, 0x0b, 0x9d, 0xb9, 0x4a, 0x84},
+    // temperature
+    {0x93, 0x31, 0xdd, 0x23, 0x99, 0x42, 0x11, 0xd9, 0xd3, 0x6a, 0xa7,
+     0xb6, 0xc3, 0x0d, 0xbb, 0x68, 0xb3, 0xac, 0x3a, 0x23, 0xe7, 0xc3,
+     0xa6, 0xa5, 0x03, 0xbf, 0x47, 0xbd, 0x29, 0x84, 0x48, 0x65},
+};
+#define RELEASE_1_0_0_COUNT (sizeof(RELEASE_1_0_0) / sizeof(RELEASE_1_0_0[0]))
+
+static void image_modules_load(void) {
+  size_t bytes = sizeof(s_image_modules);
+  esp_err_t err = settings_blob_get(IMAGE_MODULES_KEY, s_image_modules, &bytes);
+  bool whole = err == ESP_OK && bytes % sizeof(image_module_t) == 0;
+  s_image_module_n = whole ? bytes / sizeof(image_module_t) : 0;
+}
+
+static image_module_t *image_module_of(const char *id) {
+  for (size_t i = 0; i < s_image_module_n; i++) {
+    if (strncmp(s_image_modules[i].id, id, STORE_ID_MAX) == 0) {
+      return &s_image_modules[i];
+    }
+  }
+  return NULL;
+}
+
+static bool from_an_image(const char *id, const uint8_t sha[SHA_LEN]) {
+  for (size_t i = 0; i < RELEASE_1_0_0_COUNT; i++) {
+    if (memcmp(RELEASE_1_0_0[i], sha, SHA_LEN) == 0) {
+      return true;
+    }
+  }
+  const image_module_t *known = image_module_of(id);
+  return known && memcmp(known->sha, sha, SHA_LEN) == 0;
+}
+
+// Records sha as the image module stored under id, in place of an earlier one.
+static void note_image_module(const char *id, const uint8_t sha[SHA_LEN]) {
+  image_module_t *known = image_module_of(id);
+  if (known && memcmp(known->sha, sha, SHA_LEN) == 0) {
+    return;
+  }
+  if (!known) {
+    if (s_image_module_n == IMAGE_MODULES_MAX) {
+      ESP_LOGW(TAG, "image module %s not noted: the list is full", id);
+      return;
+    }
+    known = &s_image_modules[s_image_module_n++];
+    memset(known, 0, sizeof(*known));
+    strlcpy(known->id, id, sizeof(known->id));
+  }
+  memcpy(known->sha, sha, SHA_LEN);
+  size_t bytes = s_image_module_n * sizeof(image_module_t);
+  esp_err_t err = settings_blob_set(IMAGE_MODULES_KEY, s_image_modules, bytes);
+  if (err != ESP_OK) {
+    ESP_LOGW(TAG, "image module %s not noted: %s", id, esp_err_to_name(err));
+  }
 }
 
 // ---- memory --------------------------------------------------------------------------------
@@ -156,9 +259,33 @@ static const char *load(int i, const manifest_t *m, const char *text, int text_l
 
 // ---- boot ----------------------------------------------------------------------------------
 
-// Standard plugins whose stored module did not read at boot, put back by the tick.
-static const standard_t *s_restore[STANDARD_COUNT];
+// Standard plugins the tick installs again from the image: one whose stored module did
+// not read at boot, and one whose stored module is an earlier image's (sha is that
+// module's, so a module the user uploads before the tick is left alone).
+typedef struct {
+  const standard_t *standard;
+  bool outdated;
+  uint8_t sha[SHA_LEN];
+} restore_t;
+
+static restore_t s_restore[STANDARD_COUNT];
 static int s_restore_n;
+
+// What the boot found on flash under a standard id: this image's module, an earlier
+// image's, or one the user uploaded. This image's is noted, so a later image knows it.
+static bool outdated(const standard_t *standard, uint8_t stored[SHA_LEN]) {
+  uint8_t embedded[SHA_LEN];
+  uint32_t len = (uint32_t) (standard->end - standard->start);
+  if (store_sha256(standard->id, stored) != STORE_OK ||
+      !store_sha256_of(standard->start, len, embedded)) {
+    return false;
+  }
+  if (memcmp(stored, embedded, SHA_LEN) == 0) {
+    note_image_module(standard->id, stored);
+    return false;
+  }
+  return from_an_image(standard->id, stored);
+}
 
 static void load_installed(const char *id) {
   uint8_t *code = NULL;
@@ -171,7 +298,14 @@ static void load_installed(const char *id) {
   const standard_t *standard = standard_of(id);
   if (s_runtime_up && standard && (e == STORE_ERR_FLASH || e == STORE_ERR_HASH)) {
     ESP_LOGW(TAG, "installed %s does not read (%s): restored after boot", id, store_err_code(e));
-    s_restore[s_restore_n++] = standard;
+    s_restore[s_restore_n++] = (restore_t){.standard = standard};
+  }
+  if (s_runtime_up && standard && e == STORE_OK) {
+    restore_t r = {.standard = standard, .outdated = true};
+    if (outdated(standard, r.sha)) {
+      ESP_LOGW(TAG, "installed %s is an earlier firmware's: updated after boot", id);
+      s_restore[s_restore_n++] = r;
+    }
   }
   if (e != STORE_OK && store_size(id, &len) != STORE_OK) {
     len = 0;
@@ -194,10 +328,11 @@ static void load_installed(const char *id) {
 static const char *install(const uint8_t *received, uint32_t len, const char **name, int *changed);
 
 // The standard plugins, at the first boot and after a factory reset (which erases the
-// record). One already installed under the same id, the user's own or an earlier copy,
-// is left as it is. The record is kept unless one was refused for memory that may be free
-// at the next boot (PSRAM, the internal heap); refused for the storage, it stays for the
-// user to install from the store once there is room.
+// record). One already installed under the same id is left as it is here: the user's
+// own stays, an earlier image's copy is updated by the tick. The record is kept unless
+// one was refused for memory that may be free at the next boot (PSRAM, the internal
+// heap); refused for the storage, it stays for the user to install from the store once
+// there is room.
 static void install_standard(void) {
   size_t len = 0;
   if (!s_runtime_up || settings_blob_get(DEFAULTS_KEY, NULL, &len) == ESP_OK) {
@@ -234,6 +369,7 @@ void wasm_host_init(const wasm_host_hooks_t *hooks) {
   };
   plugins_init(&table);
   store_init();
+  image_modules_load();
   if (heap_caps_get_total_size(MALLOC_CAP_SPIRAM) == 0) {
     ESP_LOGW(TAG, "no PSRAM: WASM plugins off");
   } else {
@@ -370,6 +506,14 @@ static const char *install(const uint8_t *received, uint32_t len, const char **n
     }
     return e == STORE_OK ? "memory" : store_err_code(e);
   }
+  const standard_t *standard = standard_of(m.id);
+  if (standard && len == (uint32_t) (standard->end - standard->start) &&
+      memcmp(received, standard->start, len) == 0) {
+    uint8_t sha[SHA_LEN];
+    if (store_sha256(m.id, sha) == STORE_OK) {
+      note_image_module(m.id, sha);
+    }
+  }
   *changed = i;
   // On flash either way: a plugin that did not load is listed with why, and loads at the
   // next boot.
@@ -393,20 +537,37 @@ static int remove_now(const char *id) {
 
 // ---- the UI loop's tick --------------------------------------------------------------------
 
-// Puts back the next standard plugin that did not read at boot; -1 when none is due.
+// Whether a standard plugin picked at boot is still the one to install again: since
+// then the user may have deleted it or installed another module under its id.
+static bool restore_due(const restore_t *r) {
+  int i = plugins_find(r->standard->id);
+  if (i < 0) {
+    return false;
+  }
+  if (r->outdated) {
+    uint8_t now[SHA_LEN];
+    return store_sha256(r->standard->id, now) == STORE_OK && memcmp(now, r->sha, SHA_LEN) == 0;
+  }
+  plugin_info_t info;
+  return plugins_info(i, &info) && info.state == PLUGIN_FAILED;
+}
+
+// Installs the next standard plugin picked at boot from the image; -1 when none is due.
 static int restore_tick(void) {
   static int ticks;
   if (s_restore_n == 0 || ++ticks < WASM_RESTORE_AFTER_TICKS) {
     return -1;
   }
-  const standard_t *standard = s_restore[--s_restore_n];
-  // Since the boot the user may have deleted it or installed another module under its
-  // id: only a plugin still listed failed is put back.
-  int i = plugins_find(standard->id);
-  plugin_info_t info;
-  if (i < 0 || !plugins_info(i, &info) || info.state != PLUGIN_FAILED) {
+  // An update that has not proved itself yet may still roll back to a firmware that
+  // cannot run this image's modules: the stored ones wait for the confirmation.
+  if (s_restore[s_restore_n - 1].outdated && rollback_pending()) {
     return -1;
   }
+  const restore_t *r = &s_restore[--s_restore_n];
+  if (!restore_due(r)) {
+    return -1;
+  }
+  const standard_t *standard = r->standard;
   int changed = -1;
   const char *name;
   const char *why = install(standard->start, standard->end - standard->start, &name, &changed);

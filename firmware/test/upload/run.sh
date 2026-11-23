@@ -1,6 +1,7 @@
 #!/bin/bash
 # Host check of components/wasm_host/wasm_host.c: the first boot's standard plugins, the
-# upload and install handover, deletion, what an older firmware left, and installing
+# upload and install handover, deletion, what an older firmware left, a standard plugin
+# an earlier image installed, and installing
 # until the storage is full (harness.c says what each scenario checks). The modules are
 # the clock under other ids: build.sh builds it, and sdk/embed_manifest.py puts back its
 # real plugin.json with the id changed; "old" carries the clock's plugin.json of
@@ -38,7 +39,17 @@ cmake --build "$BUILD" -j 8 >/dev/null
 
 NVS="$BUILD/nvs.bin"
 status=0
-for scenario in first_boot second_boot older_firmware uploads unreadable_standard fresh until_full; do
+for id in clock alerts; do
+  cp "$BUILD/standard/$id.wasm" "$MODS/${id}_image.wasm"
+done
+# The alert map as release 1.0.0 carried it, built from the tag: byte for byte the
+# module inside cgdn1.swithy.com/fw/1.0.0/cgdn1.bin, which is what wasm_host.c knows.
+mkdir -p "$BUILD/v1.0.0"
+git -C "$FW/.." archive v1.0.0 plugins | tar -x -C "$BUILD/v1.0.0"
+"$BUILD/v1.0.0/plugins/build.sh" "$BUILD/v1.0.0/plugins/standard/alerts" \
+  "$MODS/alerts_1_0_0.wasm" >/dev/null
+for scenario in first_boot second_boot older_firmware uploads unreadable_standard earlier_image \
+  fresh until_full; do
   if [[ $scenario == fresh ]]; then
     rm -f "$NVS"
     continue

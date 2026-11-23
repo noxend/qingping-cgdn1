@@ -42,6 +42,12 @@ store_err_t store_remove(const char *id, bool erase_settings);
 // The installed module's size.
 store_err_t store_size(const char *id, uint32_t *len);
 
+// The installed module's SHA-256, from its record.
+store_err_t store_sha256(const char *id, uint8_t sha[32]);
+
+// A module's SHA-256, as a record holds it; false when the hash could not be made.
+bool store_sha256_of(const uint8_t *code, uint32_t len, uint8_t sha[32]);
+
 // The installed module, in a buffer from alloc (freed by the caller), checked against
 // its record's SHA-256.
 store_err_t store_read(const char *id, uint8_t **code, uint32_t *len, void *(*alloc)(size_t size),

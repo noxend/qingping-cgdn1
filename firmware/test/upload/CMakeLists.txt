@@ -25,6 +25,7 @@ add_executable(harness
   ${FW}/components/drivers/text.c
   ${FW}/components/ui/gfx_blit.c
   ${FW}/components/http/json_out.c
+  ${FW}/components/system/json_escape.c
   ${FW}/components/wasm_host/wasm_host.c
   ${FW}/components/wasm_host/wasm_plugins.c
   ${FW}/components/wasm_host/wasm_store.c
