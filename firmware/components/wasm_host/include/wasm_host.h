@@ -21,9 +21,10 @@ typedef struct {
 void wasm_host_init(const wasm_host_hooks_t *hooks);
 
 // From the UI loop, once a second: does a requested deletion or an install, or, from
-// WASM_RESTORE_AFTER_TICKS on, puts back a standard plugin whose stored module did not
-// read at boot. Returns the table index that now holds another plugin or none, so the
-// core re-reads its screens; else -1.
+// WASM_RESTORE_AFTER_TICKS on, installs a standard plugin again from the image: one whose
+// stored module did not read at boot, or, once the running image is confirmed, one that
+// is an earlier firmware's copy. Returns the table index that now holds another plugin
+// or none, so the core re-reads its screens; else -1.
 int wasm_host_tick(void);
 
 // Ticks after boot before a standard plugin is restored: the network and the first

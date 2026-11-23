@@ -243,6 +243,20 @@ store_err_t store_size(const char *id, uint32_t *len) {
   return STORE_OK;
 }
 
+store_err_t store_sha256(const char *id, uint8_t sha[32]) {
+  record_t r;
+  esp_err_t e = record_read(id, &r);
+  if (e != ESP_OK) {
+    return e == ESP_ERR_NVS_NOT_FOUND ? STORE_ERR_NOT_FOUND : STORE_ERR_FLASH;
+  }
+  memcpy(sha, r.sha256, sizeof(r.sha256));
+  return STORE_OK;
+}
+
+bool store_sha256_of(const uint8_t *code, uint32_t len, uint8_t sha[32]) {
+  return sha_of(code, len, sha);
+}
+
 store_err_t store_read(const char *id, uint8_t **code, uint32_t *len, void *(*alloc)(size_t size),
                        void (*release)(void *p)) {
   *code = NULL;

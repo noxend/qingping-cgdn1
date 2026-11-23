@@ -159,6 +159,11 @@ after 60 s of being healthy: HTTP server up, and joined to home WiFi or serving 
 setup AP. If you updated over the setup AP without home WiFi, open `http://10.47.0.1/` within 3
 minutes, otherwise the update rolls back.
 
+A restart before the image is confirmed would roll the update back as well, so until then the
+device does not restart on request: the menu's Restart and Factory reset do nothing, the power
+button does not power off, and `POST /reboot`, `POST /reset` and `POST /save` answer 409. Try
+again a minute later.
+
 The System page of the web interface does the same upload from the browser, and installs releases too: the device
 reads `https://cgdn1.swithy.com/firmware.json` hourly, shows "New version" in the header when it
 names a version above its own, and on "Update" downloads the image itself (`POST /update`). Optional auto update at 04:00 (`POST /update/auto`, off by default). A release is
@@ -307,6 +312,11 @@ interpreter, everything it allocates in PSRAM; without PSRAM no screen runs.
   factory reset, and on the first boot of 1.0, the device installs the ones missing, once (a record
   in the core namespace of `nvs_cfg` says it did). From then on they are deleted and installed like
   an upload; the store offers a deleted one again from the image (`POST /plugins/install`).
+  A firmware update brings its own copies: once the new image is confirmed, a stored standard
+  plugin that an earlier image installed is replaced by this image's, its settings kept. The device
+  tells those by a list of the modules its images installed (`std_modules` in the core namespace;
+  the modules of 1.0.0, which kept no list, are known by hash). A module you uploaded under a
+  standard id is not on the list and stays.
 - **Storage** (`wasm_store.c`): each module in one of two banks of `nvs_cfg` under its id, and a
   record naming the bank with the module's size and SHA-256; an update writes the other bank, then
   the record. The module carries its `plugin.json` in the custom section `cgdn1.plugin`, read again

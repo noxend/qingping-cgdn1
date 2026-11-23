@@ -14,6 +14,10 @@
 #define BODY_MAX (32 * 1024)  // the answer is about 20 KB; the device's cap is 32 KB
 // About five minutes of failed polls: stop showing alerts that may be over.
 #define STALE_FAILS 10
+// The map polls only while it is the shown screen. An answer older than this is not
+// drawn or lit while the map is hidden (a neighbour frame, a preview), and is dropped
+// when the map is shown again, so alerts from hours ago never pass for current.
+#define FRESH_MIN 2
 #define LEVEL_ALERT 15  // a region under alert
 #define LEVEL_EDGE 4    // a border between two regions
 #define LEVEL_COAST 11  // the country's outline
@@ -64,6 +68,7 @@ static const char LEVELS[] = "yellow\0red\0";
 
 static uint8_t s_shown[REGION_COUNT];  // the levels drawn
 static bool s_have;                    // s_shown holds an answer that is not stale
+static int s_answer_min;               // minutes() when that answer came
 static int s_led_region = -1;
 static int s_fails;
 static bool s_visible;   // the map is the shown screen
@@ -76,15 +81,37 @@ static int s_http;
 static int s_alerts;
 static int s_draws;
 
+// Minutes on a running count, for the age of the shown answer.
+static int minutes(void) {
+  wasm_tm_t t;
+  core_localtime(&t, sizeof(t));
+  return (t.yday * 24 + t.hour) * 60 + t.min;
+}
+
+// A clock that was set meanwhile, or a new year, makes the age meaningless: not fresh.
+static bool answer_fresh(void) {
+  int age = minutes() - s_answer_min;
+  return age >= 0 && age <= FRESH_MIN;
+}
+
+// Whether the levels may be drawn and lit: the map has an answer, and it is polling or
+// stopped a moment ago.
+static bool answer_usable(void) {
+  return s_have && (s_visible || answer_fresh());
+}
+
+// "live" is whether the levels are being kept up to date: the map has an answer and
+// is the shown screen. The web page shows the level only then.
 static void publish_stats(void) {
   uint8_t lv = s_led_region >= 0 ? s_shown[s_led_region] : LVL_NONE;
   const char *level = lv == LVL_RED ? "red" : (lv == LVL_YELLOW ? "yellow" : "none");
-  char json[200];
+  char json[224];
   snprintf(json, sizeof(json),
            "{\"fetch_ok\":%d,\"fetch_fail\":%d,\"http\":%d,\"alerts\":%d,\"draws\":%d,"
-           "\"region\":\"%s\",\"level\":\"%s\"}",
+           "\"region\":\"%s\",\"level\":\"%s\",\"live\":%s}",
            s_fetch_ok, s_fetch_fail, s_http, s_alerts, s_draws,
-           s_led_region >= 0 ? KEYS[s_led_region] : "", level);
+           s_led_region >= 0 ? KEYS[s_led_region] : "", level,
+           s_have && s_visible ? "true" : "false");
   core_stats(json);
 }
 
@@ -143,6 +170,7 @@ static void refresh(bool ok, const uint8_t *parsed, bool online) {
     s_fetch_ok++;
     s_fails = 0;
     s_have = true;
+    s_answer_min = minutes();
   } else {
     if (online) {
       s_fetch_fail++;
@@ -186,9 +214,24 @@ static void request(void) {
   }
 }
 
+// Forgets an answer that is too old to draw as current: the map then says "loading"
+// until the request that follows answers.
+static void drop_old_answer(void) {
+  if (!s_have || answer_fresh()) {
+    return;
+  }
+  s_have = false;
+  s_fails = 0;
+  s_alerts = 0;
+  memset(s_shown, LVL_NONE, sizeof(s_shown));
+  core_redraw();
+  publish_stats();
+}
+
 WASM_EXPORT("on_event") void alerts_on_event(int type, int timer_id) {
   if (type == CORE_EV_SHOW) {
     s_visible = true;
+    drop_old_answer();
     core_timer_start(TIMER_POLL, POLL_MS, true);
     if (core_online()) {
       request();  // showing the map is not a failed poll when offline
@@ -196,8 +239,15 @@ WASM_EXPORT("on_event") void alerts_on_event(int type, int timer_id) {
   } else if (type == CORE_EV_HIDE) {
     s_visible = false;
     core_timer_stop(TIMER_POLL);
-  } else if (type == CORE_EV_TIMER && s_visible) {
-    request();  // a tick queued before HIDE must not start a fetch
+    publish_stats();                                // no longer live
+  } else if (type == CORE_EV_TIMER && s_visible) {  // a tick queued before HIDE asks nothing
+    if (s_inflight) {
+      // A whole period without an answer: the one network worker is held by something
+      // slow. A failed poll, so alerts nobody can confirm do not stay for good.
+      refresh(false, NULL, true);
+    } else {
+      request();
+    }
   }
 }
 
@@ -218,17 +268,18 @@ WASM_EXPORT("on_net") void alerts_on_net(int status, int len) {
 // answer to show, a dim outline and the standard note: "loading" while the first request
 // is out, else "no data".
 WASM_EXPORT("draw") void alerts_draw(void) {
+  bool usable = answer_usable();
   uint8_t palette[256];
   memset(palette, 0, sizeof(palette));
   for (int i = 0; i < REGION_COUNT; i++) {
-    palette[i] = s_shown[i] != LVL_NONE ? LEVEL_ALERT : 0;
+    palette[i] = usable && s_shown[i] != LVL_NONE ? LEVEL_ALERT : 0;
   }
   palette[EDGE] = LEVEL_EDGE;
-  palette[COAST] = s_have ? LEVEL_COAST : LEVEL_NO_DATA;
+  palette[COAST] = usable ? LEVEL_COAST : LEVEL_NO_DATA;
   palette[OUTSIDE] = GFX_KEEP;
   gfx_clear();
   gfx_blit(0, 0, GFX_W, GFX_H, MAP, 8, palette);
-  if (!s_have) {
+  if (!usable) {
     gfx_text_begin();
     gfx_font(GFX_FONT_TEXT);
     gfx_text(NOTE_X, NOTE_Y, s_inflight && s_fails == 0 ? "loading" : "no data");
@@ -241,7 +292,7 @@ WASM_EXPORT("draw") void alerts_draw(void) {
 // The LED shows the alert in the chosen region: red for a red-level alert, amber for a
 // yellow-level one, off when there is none.
 WASM_EXPORT("led") int alerts_led(void) {
-  uint8_t lv = s_led_region >= 0 ? s_shown[s_led_region] : LVL_NONE;
+  uint8_t lv = s_led_region >= 0 && answer_usable() ? s_shown[s_led_region] : LVL_NONE;
   if (lv == LVL_RED) {
     return 0xFF0000;
   }

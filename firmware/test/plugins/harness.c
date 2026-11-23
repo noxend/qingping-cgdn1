@@ -177,6 +177,68 @@ static int run_case(const char *dir, const char *data, const plugin_case_t *c) {
   return ready ? 0 : 1;
 }
 
+// The alert map asks for alerts only while it is shown. An answer stays on the map
+// through a short look at another screen, and is dropped when the map comes back
+// after hours: alerts that old are not drawn, or lit on the LED, as current.
+static int alerts_reshown(const char *dir, const char *data) {
+  s_now = MORNING;
+  host_set_setting(NULL, NULL);
+  host_online = true;
+  int i = load(dir, "alerts");
+  if (i < 0) {
+    return 1;
+  }
+  char path[256];
+  snprintf(path, sizeof(path), "%s/alerts.json", data);
+  uint32_t len = 0;
+  char *body = read_file(path, &len);
+  plugins_event(i, &(core_event_t){.type = CORE_EV_SHOW});
+  core_event_t answer = {.type = CORE_EV_NET,
+                         .net = {.status = 200, .body = body, .len = (int) len}};
+  plugins_event(i, &answer);
+  free(body);
+  uint8_t rgb[3];
+  bool lit = plugins_led(i, &rgb[0], &rgb[1], &rgb[2]);
+  bool live = strstr(host_stats, "\"live\":true") != NULL;
+
+  plugins_event(i, &(core_event_t){.type = CORE_EV_HIDE});
+  bool hidden_not_live = strstr(host_stats, "\"live\":false") != NULL;
+
+  s_now += 60;
+  plugins_event(i, &(core_event_t){.type = CORE_EV_SHOW});
+  bool kept = plugins_led(i, &rgb[0], &rgb[1], &rgb[2]);
+  plugins_event(i, &(core_event_t){.type = CORE_EV_HIDE});
+
+  // Hidden for hours: a neighbour frame or a preview asks for the LED before any SHOW.
+  s_now += 3 * 3600;
+  bool dark_hidden = !plugins_led(i, &rgb[0], &rgb[1], &rgb[2]);
+  plugins_event(i, &(core_event_t){.type = CORE_EV_SHOW});
+  bool dropped =
+      !plugins_led(i, &rgb[0], &rgb[1], &rgb[2]) && strstr(host_stats, "\"alerts\":0,") != NULL;
+
+  // A fresh answer, then requests nobody answers: after ten periods the map gives up.
+  body = read_file(path, &len);
+  answer.net.body = body;
+  answer.net.len = (int) len;
+  plugins_event(i, &answer);
+  free(body);
+  bool lit_again = plugins_led(i, &rgb[0], &rgb[1], &rgb[2]);
+  for (int tick = 0; tick < 11; tick++) {
+    plugins_event(i, &(core_event_t){.type = CORE_EV_TIMER, .timer_id = 1});
+  }
+  bool gave_up = !plugins_led(i, &rgb[0], &rgb[1], &rgb[2]);
+  plugins_drop(i);
+
+  bool ok =
+      lit && live && hidden_not_live && kept && dark_hidden && dropped && lit_again && gave_up;
+  fprintf(stderr,
+          "%-18s lit %d live %d, hidden not live %d, kept after 1 min %d, dark hidden %d, "
+          "dropped after 3 h %d, lit again %d, gave up unanswered %d  %s\n",
+          "alerts_reshown", lit, live, hidden_not_live, kept, dark_hidden, dropped, lit_again,
+          gave_up, ok ? "ok" : "FAIL");
+  return ok ? 0 : 1;
+}
+
 static void *heap_alloc(size_t size) {
   return calloc(1, size);
 }
@@ -460,6 +522,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < CASE_COUNT; i++) {
     failed += run_case(argv[1], argv[2], &CASES[i]);
   }
+  failed += alerts_reshown(argv[1], argv[2]);
   failed += run_menu_cases();
   fprintf(stderr, "%d cases failed\n", failed);
   return failed ? 1 : 0;

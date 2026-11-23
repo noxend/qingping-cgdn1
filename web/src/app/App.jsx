@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useTheme } from "@heroui/react";
+import { Toast, useTheme } from "@heroui/react";
 
 import { Loading } from "./Loading";
 import { SignedIn } from "./SignedIn";
@@ -12,6 +12,16 @@ import { Setup } from "../pages/system/Setup";
 // only to a signed-in browser. A firmware from before sign-in (API 1) gets its own
 // built-in page, which matches it.
 export default function App() {
+  return (
+    <>
+      <Page />
+      {/* Here, above every layout: the setup and the sign-in show notices too. */}
+      <Toast.Provider placement="bottom end" />
+    </>
+  );
+}
+
+function Page() {
   useTheme("system");
 
   const { data: status, error } = useStatus();

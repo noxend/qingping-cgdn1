@@ -91,8 +91,18 @@ static void commit(int idx) {
   carousel_shown();  // as the screen manager does: the neighbours are stale now
 }
 
+// The touch task on the other core: when armed, it stores one more sample while the
+// frame that starts a drag is still at work, a few milliseconds after that frame read
+// the clock.
+static bool s_sample_mid_frame;
+
 static void led(int idx, uint8_t rgb[3]) {
   rgb[0] = rgb[1] = rgb[2] = 0;
+  if (s_sample_mid_frame) {
+    s_sample_mid_frame = false;
+    s_now_us += 3000;
+    carousel_touch(TOUCH_PHASE_MOVE, 150);
+  }
 }
 
 static bool post(carousel_work_t work) {
@@ -219,6 +229,26 @@ int main(void) {
                   !carousel_busy() && s_shown_idx != shown_before &&
                       carousel_frames_reposted() - reposted_before == 0,
                   detail);
+
+  // A sample lands while the frame that starts the drag is at work. The drag must go
+  // on: the old frame compared its earlier clock reading with the newer sample
+  // unsigned, took the finger for gone and ignored the rest of the swipe.
+  shown_before = s_shown_idx;
+  carousel_touch(TOUCH_PHASE_DOWN, 100);
+  tick();
+  s_sample_mid_frame = true;
+  carousel_touch(TOUCH_PHASE_MOVE, 140);
+  tick();
+  carousel_touch(TOUCH_PHASE_MOVE, 200);
+  tick();
+  carousel_touch(TOUCH_PHASE_UP, 200);
+  for (int i = 0; i < 60; i++) {
+    tick();
+  }
+  snprintf(detail, sizeof(detail), "shown %d -> %d, busy %d", shown_before, s_shown_idx,
+           carousel_busy());
+  failed +=
+      check("sample during drag start", !carousel_busy() && s_shown_idx != shown_before, detail);
 
   printf("%d cases failed\n", failed);
   return failed;

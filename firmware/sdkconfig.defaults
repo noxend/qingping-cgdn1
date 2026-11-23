@@ -47,6 +47,9 @@ CONFIG_MBEDTLS_CUSTOM_MEM_ALLOC=y
 # with no watchdog. Off, a panic always ends in a reset.
 CONFIG_ESP_DEBUG_OCDAWARE=n
 
+# core_net.c gives the HTTP client a connection of its own, to close a half-open one.
+CONFIG_ESP_HTTP_CLIENT_ENABLE_CUSTOM_TRANSPORT=y
+
 # PSRAM for run-time loaded (WASM) plugins and for large or passing buffers (TLS sessions,
 # network bodies, JSON trees, preview frames: heap_large_* in heap_internal.h): CAPS_ALLOC
 # keeps every ordinary malloc, Wi-Fi and lwIP buffer in internal RAM, so only explicit PSRAM

@@ -75,7 +75,8 @@ The menu is in English only.
 ### Night mode and burn-in protection
 
 Night mode dims the screen and the indicator, or turns the screen off, between two times you set on
-the Display page. It is off by default; when turned on it runs from 22:00 to 08:00 with the screen
+the Display page. With the screen off, the device menu and the Wi-Fi setup page still show, dimmed,
+so the power button works at night too. It is off by default; when turned on it runs from 22:00 to 08:00 with the screen
 at 30 % and the indicator at 20 %.
 
 Burn-in protection is always on: the picture moves by a pixel every minute, so static parts of a

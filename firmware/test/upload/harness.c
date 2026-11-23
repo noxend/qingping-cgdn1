@@ -469,6 +469,82 @@ static void unreadable_standard(void) {
   check(co2, "and its module reads from flash again");
 }
 
+// The update the running image is: unconfirmed while set.
+static bool s_update_pending;
+
+bool rollback_pending(void) {
+  return s_update_pending;
+}
+
+static bool stored_is(const char *id, const char *name) {
+  module_t want = module(name);
+  uint8_t *code = NULL;
+  uint32_t len = 0;
+  bool same = store_read(id, &code, &len, malloc, free) == STORE_OK && len == (uint32_t) want.len &&
+              memcmp(code, want.bytes, len) == 0;
+  free(code);
+  free(want.bytes);
+  return same;
+}
+
+// The list of image modules as wasm_host.c keeps it (IMAGE_MODULES_KEY).
+typedef struct {
+  char id[STORE_ID_MAX];
+  uint8_t sha[32];
+} image_module_t;
+
+// Whether the list names the module now stored under id as an image's.
+static bool noted_as_image(const char *id) {
+  image_module_t list[16];
+  size_t bytes = sizeof(list);
+  uint8_t stored[32];
+  if (settings_blob_get("std_modules", list, &bytes) != ESP_OK ||
+      store_sha256(id, stored) != STORE_OK) {
+    return false;
+  }
+  for (size_t i = 0; i < bytes / sizeof(list[0]); i++) {
+    if (strcmp(list[i].id, id) == 0) {
+      return memcmp(list[i].sha, stored, sizeof(stored)) == 0;
+    }
+  }
+  return false;
+}
+
+// A firmware update. On flash: a clock an earlier image installed (the list says so),
+// the alert map of 1.0.0 (which kept no list), and a pm10 the user uploaded. Once the
+// update is confirmed the tick replaces the first two with this image's copies and
+// leaves the third.
+static void earlier_image(void) {
+  cJSON *root = plugins();
+  check(strcmp(state_of(root, "clock"), "ready") == 0 && stored_is("clock", "clock_earlier"),
+        "an earlier image's clock runs at boot");
+  cJSON_Delete(root);
+  for (int t = 0; t < WASM_RESTORE_AFTER_TICKS + 4; t++) {
+    wasm_host_tick();
+  }
+  check(stored_is("clock", "clock_earlier") && stored_is("alerts", "alerts_1_0_0"),
+        "nothing is replaced while the update is unconfirmed");
+  s_update_pending = false;
+  for (int t = 0; t < 4; t++) {
+    wasm_host_tick();
+  }
+  root = plugins();
+  check(strcmp(state_of(root, "clock"), "ready") == 0 && stored_is("clock", "clock_image"),
+        "confirmed: the tick installs this image's clock");
+  check(strcmp(state_of(root, "alerts"), "ready") == 0 && stored_is("alerts", "alerts_image"),
+        "and this image's alert map over the one 1.0.0 stored");
+  check(strcmp(state_of(root, "pm10"), "ready") == 0 && stored_is("pm10", "pm10_own"),
+        "the user's own pm10 stays");
+  cJSON_Delete(root);
+  check(noted_as_image("clock") && noted_as_image("alerts") && !noted_as_image("pm10"),
+        "the list names the two installed from the image, not the user's");
+  check(noted_as_image("temperature"),
+        "and the temperature, which the boot found equal to the image's");
+  char value[8];
+  settings_get("clock", "seconds", value, sizeof(value), "");
+  check(strcmp(value, "1") == 0, "and the clock keeps its settings");
+}
+
 static void nothing(void) {
 }
 
@@ -518,6 +594,24 @@ int main(int argc, char **argv) {
       free(code);
     }
   }
+  if (strcmp(scenario, "earlier_image") == 0) {
+    settings_set("clock", "seconds", "1");
+    module_t earlier = module("clock_earlier");
+    store_save("clock", (uint8_t *) earlier.bytes, (uint32_t) earlier.len);
+    free(earlier.bytes);
+    // The list an earlier firmware kept: the clock is the module its image installed.
+    image_module_t noted = {.id = "clock"};
+    store_sha256("clock", noted.sha);
+    settings_blob_set("std_modules", &noted, sizeof(noted));
+    // The alert map as 1.0.0 stored it, which kept no list.
+    module_t release = module("alerts_1_0_0");
+    store_save("alerts", (uint8_t *) release.bytes, (uint32_t) release.len);
+    free(release.bytes);
+    module_t own = module("pm10_own");
+    store_save("pm10", (uint8_t *) own.bytes, (uint32_t) own.len);
+    free(own.bytes);
+    s_update_pending = true;
+  }
   const wasm_host_hooks_t hooks = {
       .timers_stop = timers_stop,
       .lock = nothing,
@@ -535,6 +629,8 @@ int main(int argc, char **argv) {
     uploads();
   } else if (strcmp(scenario, "unreadable_standard") == 0) {
     unreadable_standard();
+  } else if (strcmp(scenario, "earlier_image") == 0) {
+    earlier_image();
   } else if (strcmp(scenario, "until_full") == 0) {
     until_full();
   }

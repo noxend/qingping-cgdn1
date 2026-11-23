@@ -94,7 +94,7 @@ static void on_button_hold(void) {
 // Until the image is confirmed a power cut rolls the update back, so power off
 // waits for that (a minute at most after an update).
 static bool update_pending(void) {
-  if (strcmp(rollback_image_state(), "pending") != 0) {
+  if (!rollback_pending()) {
     return false;
   }
   ESP_LOGW(TAG, "power off ignored: the update is not confirmed yet");

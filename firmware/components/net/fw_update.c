@@ -16,12 +16,21 @@
 #include "esp_timer.h"
 #include "mbedtls/sha256.h"
 #include "core_net.h"
+#include "net_deadline.h"
 #include "fw_manifest.h"
 #include "settings.h"
 
 #define TIMEOUT_MS 10000
 // A whole download, however slowly the server drips it; 1.5 MB takes about a minute.
 #define DEADLINE_US (5LL * 60 * 1000 * 1000)
+// One step of it: the connect and the image's first bytes, or one read of the body.
+// Under the task watchdog's minute, which a server sending a byte every few seconds
+// would otherwise outlast inside a single read.
+// Ceiling: not during the TLS handshake, which esp_https_ota runs as one blocking call
+// with no socket to shut. A server that drips it there ends in a watchdog restart, once
+// per install; a download written on the request's stepwise connect would lift it.
+#define STEP_DEADLINE_US (30LL * 1000 * 1000)
+#define TOO_SLOW "the server answered too slowly"
 #define HASH_CHUNK 4096
 #define AUTO_HOUR 4
 
@@ -69,6 +78,7 @@ static const char *download(esp_https_ota_handle_t h, const fw_manifest_t *m) {
   int64_t start_us = esp_timer_get_time();
   while (true) {
     esp_task_wdt_reset();
+    core_net_deadline_start(STEP_DEADLINE_US);
     esp_err_t err = esp_https_ota_perform(h);
     int done = esp_https_ota_get_image_len_read(h);
     set_state(FW_UPD_DOWNLOADING, done > 0 ? (uint32_t) done : 0);
@@ -136,19 +146,25 @@ static void install(void) {
       .crt_bundle_attach = esp_crt_bundle_attach,
       .timeout_ms = TIMEOUT_MS,
       .keep_alive_enable = true,
+      .event_handler = core_net_deadline_event,
   };
   esp_https_ota_config_t cfg = {.http_config = &http};
   esp_https_ota_handle_t h = NULL;
   ESP_LOGI(TAG, "installing %s from %s", m.version, m.url);
   set_state(FW_UPD_DOWNLOADING, 0);
+  core_net_deadline_start(STEP_DEADLINE_US);
   esp_err_t err = esp_https_ota_begin(&cfg, &h);
   if (err != ESP_OK) {
-    fail(esp_err_to_name(err));
+    bool slow = core_net_deadline_end();
+    fail(slow ? TOO_SLOW : esp_err_to_name(err));
     return;
   }
   const char *why = check_desc(h, &m);
   if (!why) {
     why = download(h, &m);
+  }
+  if (core_net_deadline_end() && why) {
+    why = TOO_SLOW;
   }
   if (!why) {
     set_state(FW_UPD_VERIFYING, m.size);

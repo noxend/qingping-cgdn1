@@ -161,6 +161,8 @@ export const en = {
   "alerts.count": "{n} of 27 regions under alert",
   "alerts.calm": "Calm",
   "alerts.alert": "Alert",
+  "alerts.noData": "No current data",
+  "alerts.showMap": "Shown while the alert map is on the device's screen and gets answers.",
 
   "help.alerts": {
     about:
@@ -258,6 +260,9 @@ export const en = {
   "system.firmware": "Firmware",
   "system.uploadedRebooting": "Uploaded. The device is rebooting.",
   "system.uploadFailed": "Upload failed",
+  "system.uploadNoAnswer": "No answer from the device. Check the version here once it is back.",
+  "system.saveNoAnswer":
+    "No answer from the device. If it restarted, the network was saved. If not, try again.",
   "system.chooseBin": "Choose a .bin file",
   "system.uploadHint":
     "The device restarts. If the firmware doesn't work, it goes back to the previous one.",

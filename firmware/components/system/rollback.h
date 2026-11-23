@@ -25,6 +25,10 @@ void rollback_bootloop_check(void);
 // confirmed image.
 void rollback_settle(bool pending, bool (*healthy)(void));
 
+// True while the running image waits for confirmation. A restart then makes the
+// bootloader roll the update back, so every restart the user can ask for checks this.
+bool rollback_pending(void);
+
 // For GET /status.
 const char *rollback_reset_reason(void);  // why the chip last restarted
 const char *rollback_image_state(void);   // the running slot's state in otadata

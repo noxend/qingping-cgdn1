@@ -252,7 +252,10 @@ void carousel_frame(void) {
     s_state = DRAG;
   }
   if (s_state == DRAG) {
-    if (!s_down || (uint32_t) (now / 1000) - s_seen_ms > STALE_US / 1000) {
+    // Signed: the touch task may have stored a sample since `now` was read, and an
+    // unsigned difference would turn that newer sample into a very old one.
+    int32_t unseen_ms = (int32_t) ((uint32_t) (now / 1000) - s_seen_ms);
+    if (!s_down || unseen_ms > STALE_US / 1000) {
       s_down = false;
       release();
     } else {

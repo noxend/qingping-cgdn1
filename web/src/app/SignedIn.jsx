@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Drawer, Toast } from "@heroui/react";
+import { Drawer } from "@heroui/react";
 import { useLocation } from "wouter";
 
 import { Header } from "./Header";
@@ -100,8 +100,6 @@ export function SignedIn() {
       <aside className={SIDEBAR_CLASS}>
         <Sidebar {...nav} />
       </aside>
-
-      <Toast.Provider placement="bottom end" />
 
       <Drawer>
         <Drawer.Backdrop isOpen={menuOpen} onOpenChange={setMenuOpen}>

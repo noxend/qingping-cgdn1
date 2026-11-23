@@ -8,4 +8,4 @@ idf_component_register(SRCS "net.c" "core_net.c" "signed_envelope.c" "web_manife
                        REQUIRES plugin_sdk
                        PRIV_REQUIRES system secrets esp_wifi esp_netif esp_event lwip nvs_flash
                                      esp_http_client esp_https_ota app_update mbedtls json
-                                     esp_timer mdns)
+                                     esp_timer mdns tcp_transport)
