@@ -1,9 +1,11 @@
 #include "core_net.h"
+#include "net_deadline.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "esp_crt_bundle.h"
 #include "esp_heap_caps.h"
@@ -12,15 +14,18 @@
 #include "esp_task_wdt.h"
 #include "esp_timer.h"
 #include "heap_internal.h"
+#include "lwip/sockets.h"
 
 #define URL_MAX 256
 #define QUEUE_LEN 4
 #define TIMEOUT_MS 10000
 #define FIRST_CHUNK 4096  // a body grows from this, doubling, up to the caller's cap
-// A request ends within this plus one read timeout, however slowly the server
-// drips bytes: without a wall clock a one-byte-per-9-s server would hold the
-// worker for hours. Counted from before the connect. The header phase is bounded
-// only by TIMEOUT_MS of silence (IDF reads the whole header block in one call).
+// A request ends within this, however slowly the server drips bytes: without a wall
+// clock a one-byte-per-9-s server would hold the worker for hours, and the task
+// watchdog would restart the device long before. Counted from before the connect.
+// Ceiling: not during the TLS handshake. The client reports the socket only once the
+// handshake is over, so a server that drips the handshake still outlasts the watchdog.
+// A connect the worker steps through itself (an asynchronous one) would lift it.
 #define DEADLINE_US (20LL * 1000 * 1000)
 // What the heap must keep beside the body: the TLS session (about 40 KB on this
 // target) is already paid for when the body is read, this is for everyone else.
@@ -44,6 +49,67 @@ typedef struct {
 
 static QueueHandle_t s_queue;
 static core_net_done_fn s_done;
+
+// ---- the deadline --------------------------------------------------------------------
+// esp_http_client's reads return only once their whole count has arrived, and their
+// timeout counts silence, so a check between reads never sees a server that sends a
+// byte every few seconds. The deadline is a timer that shuts the connection's socket,
+// which makes the blocked read return. The socket is followed through the client's own
+// events, so it is never touched after the client closed it. One worker, so one
+// deadline at a time.
+
+static esp_timer_handle_t s_deadline_timer;
+static SemaphoreHandle_t s_deadline_lock;
+static int s_deadline_fd = -1;  // the open connection's socket
+static int64_t s_deadline_at;   // when it runs out; 0 while none runs
+static bool s_deadline_hit;
+
+static void deadline_cb(void *arg) {
+  xSemaphoreTake(s_deadline_lock, portMAX_DELAY);
+  // A callback that was already on its way when the clock was moved is not due yet.
+  if (s_deadline_at != 0 && esp_timer_get_time() >= s_deadline_at) {
+    s_deadline_hit = true;
+    if (s_deadline_fd >= 0) {
+      shutdown(s_deadline_fd, SHUT_RDWR);
+    }
+  }
+  xSemaphoreGive(s_deadline_lock);
+}
+
+esp_err_t core_net_deadline_event(esp_http_client_event_t *evt) {
+  if (evt->event_id != HTTP_EVENT_ON_CONNECTED && evt->event_id != HTTP_EVENT_DISCONNECTED) {
+    return ESP_OK;
+  }
+  xSemaphoreTake(s_deadline_lock, portMAX_DELAY);
+  if (evt->event_id == HTTP_EVENT_DISCONNECTED) {
+    s_deadline_fd = -1;
+  } else {
+    s_deadline_fd = esp_http_client_get_socket(evt->client);
+    if (s_deadline_hit && s_deadline_fd >= 0) {
+      shutdown(s_deadline_fd, SHUT_RDWR);  // it ran out during the connect
+    }
+  }
+  xSemaphoreGive(s_deadline_lock);
+  return ESP_OK;
+}
+
+void core_net_deadline_start(int64_t us) {
+  esp_timer_stop(s_deadline_timer);
+  xSemaphoreTake(s_deadline_lock, portMAX_DELAY);
+  s_deadline_at = esp_timer_get_time() + us;
+  xSemaphoreGive(s_deadline_lock);
+  esp_timer_start_once(s_deadline_timer, (uint64_t) us);
+}
+
+bool core_net_deadline_end(void) {
+  esp_timer_stop(s_deadline_timer);
+  xSemaphoreTake(s_deadline_lock, portMAX_DELAY);
+  bool hit = s_deadline_hit;
+  s_deadline_at = 0;
+  s_deadline_hit = false;
+  xSemaphoreGive(s_deadline_lock);
+  return hit;
+}
 
 // Grows the body buffer to `next` bytes in PSRAM; without room there, in the internal
 // heap only while that leaves the headroom, since a server sizes this buffer.
@@ -102,8 +168,7 @@ static char *read_body(esp_http_client_handle_t c, int64_t announced, size_t cap
       size = next;
     }
     // esp_http_client_read returns only once its whole count has arrived (or the
-    // link is silent for TIMEOUT_MS), so the count stays small: the deadline and
-    // the watchdog then get a look in every few hundred bytes, however slow the link.
+    // link is silent for TIMEOUT_MS); the deadline's timer ends one that takes longer.
     size_t want = size - len;
     want = want > READ_CHUNK ? READ_CHUNK : want;
     esp_task_wdt_reset();
@@ -132,12 +197,14 @@ static void fetch(const request_t *req, core_net_result_t *r) {
       .url = req->url,
       .crt_bundle_attach = esp_crt_bundle_attach,
       .timeout_ms = TIMEOUT_MS,
+      .event_handler = core_net_deadline_event,
   };
   esp_http_client_handle_t c = esp_http_client_init(&cfg);
   if (!c) {
     r->err = ESP_FAIL;
     return;
   }
+  core_net_deadline_start(DEADLINE_US);
   r->err = esp_http_client_open(c, 0);
   if (r->err != ESP_OK) {
     goto done;
@@ -149,8 +216,17 @@ static void fetch(const request_t *req, core_net_result_t *r) {
     goto done;
   }
   body = read_body(c, announced, req->max_bytes, start_us, r);
-  r->body = body;
 done:
+  // A read the deadline cut short looks like the end of the body: not a result.
+  if (core_net_deadline_end()) {
+    ESP_LOGW(TAG, "request took too long");
+    free(body);
+    body = NULL;
+    r->status = 0;
+    r->len = 0;
+    r->err = ESP_ERR_TIMEOUT;
+  }
+  r->body = body;
   esp_http_client_close(c);
   esp_http_client_cleanup(c);
 }
@@ -183,7 +259,12 @@ static void net_worker(void *arg) {
 void core_net_start(core_net_done_fn done) {
   s_done = done;
   s_queue = xQueueCreate(QUEUE_LEN, sizeof(request_t));
-  if (s_queue && xTaskCreate(net_worker, "net", 8192, NULL, 3, NULL) != pdPASS) {
+  s_deadline_lock = xSemaphoreCreateMutex();
+  const esp_timer_create_args_t deadline = {.callback = deadline_cb, .name = "net_deadline"};
+  bool ready = s_queue && s_deadline_lock &&
+               esp_timer_create(&deadline, &s_deadline_timer) == ESP_OK &&
+               xTaskCreate(net_worker, "net", 8192, NULL, 3, NULL) == pdPASS;
+  if (!ready && s_queue) {
     vQueueDelete(s_queue);  // no worker: refuse requests instead of accepting them forever
     s_queue = NULL;
   }
