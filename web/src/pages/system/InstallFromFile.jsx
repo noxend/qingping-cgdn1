@@ -47,19 +47,30 @@ export function InstallFromFile({ busy }) {
     const progress = uploadToast(t);
     progress.show(0);
 
+    let sent = 0;
+    const onProgress = (share) => {
+      sent = share;
+      progress.show(share);
+    };
+
     try {
       const firmware = await file.arrayBuffer();
       const response = await upload("/ota", firmware, {
         timeoutMs: TIMEOUT_MS.firmware,
-        onProgress: progress.show,
+        onProgress,
       });
 
       if (await accepted(t, response, t("system.uploadFailed"))) {
         notify(t("system.uploadedRebooting"));
       }
     } catch {
-      // As with the network save, the reply can be lost to the reboot.
-      notify(t("system.uploadedRebooting"));
+      // No answer. Before the whole file left the browser that is a failed upload;
+      // after it, the page cannot tell a reply lost to the reboot from a drop.
+      if (sent < 1) {
+        notify(t("system.uploadFailed"), "danger");
+      } else {
+        notify(t("system.uploadNoAnswer"), "warning");
+      }
     } finally {
       progress.close();
       pausePolling(false);

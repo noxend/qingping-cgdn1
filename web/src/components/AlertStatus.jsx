@@ -1,6 +1,10 @@
 import { cn } from "../lib/cn";
 import { useT } from "../i18n";
 
+// The map keeps its levels up to date only while it is on the device's screen; the rest
+// of the time it says so ("live": false) and the page shows no level.
+const NOT_LIVE = { word: "alerts.noData", color: "#8E8E93" };
+
 const LEVELS = {
   none: { word: "alerts.calm", color: "#34C77B" },
   yellow: { word: "alerts.alert", color: "#F0B93E" },
@@ -12,7 +16,16 @@ const LEVELS = {
 export function AlertStatus({ live, size = "md" }) {
   const t = useT();
 
-  const level = LEVELS[live?.level] || LEVELS.none;
+  const notLive = live?.live === false;
+  const level = notLive ? NOT_LIVE : LEVELS[live?.level] || LEVELS.none;
+
+  let note = t("alerts.loading");
+  if (notLive) {
+    note = t("alerts.showMap");
+  } else if (live) {
+    note = t("alerts.count", { n: live.alerts });
+  }
+
   const dot = {
     background: level.color,
     boxShadow: `0 0 10px ${level.color}`,
@@ -32,9 +45,7 @@ export function AlertStatus({ live, size = "md" }) {
         </span>
       </div>
 
-      <p className="mt-1 text-sm text-muted tnum">
-        {live ? t("alerts.count", { n: live.alerts }) : t("alerts.loading")}
-      </p>
+      <p className="mt-1 text-sm text-muted tnum">{note}</p>
     </div>
   );
 }

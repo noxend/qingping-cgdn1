@@ -221,8 +221,9 @@ export function NetworkForm({ status, onSaved }) {
 
       onSaved(name);
     } catch {
-      // The device restarts right after saving, which can cut the reply short.
-      onSaved(name);
+      // No answer: the request never arrived, or the restart after a save cut the reply
+      // short. The page cannot tell which, so it says so and keeps the form.
+      notify(t("system.saveNoAnswer"), "warning");
     } finally {
       setSaving(false);
     }
