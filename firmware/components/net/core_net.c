@@ -13,6 +13,8 @@
 #include "esp_log.h"
 #include "esp_task_wdt.h"
 #include "esp_timer.h"
+#include "esp_transport.h"
+#include "esp_transport_ssl.h"
 #include "heap_internal.h"
 #include "lwip/sockets.h"
 
@@ -23,9 +25,6 @@
 // A request ends within this, however slowly the server drips bytes: without a wall
 // clock a one-byte-per-9-s server would hold the worker for hours, and the task
 // watchdog would restart the device long before. Counted from before the connect.
-// Ceiling: not during the TLS handshake. The client reports the socket only once the
-// handshake is over, so a server that drips the handshake still outlasts the watchdog.
-// A connect the worker steps through itself (an asynchronous one) would lift it.
 #define DEADLINE_US (20LL * 1000 * 1000)
 // What the heap must keep beside the body: the TLS session (about 40 KB on this
 // target) is already paid for when the body is read, this is for everyone else.
@@ -36,6 +35,8 @@
 #define GROW_DOUBLE_UNTIL (8 * 1024)
 #define GROW_STEP (8 * 1024)
 #define READ_CHUNK 1024
+// How long the worker sleeps between two steps of a connect that is not through yet.
+#define CONNECT_STEP_MS 20
 
 static const char *TAG = "net";
 
@@ -56,7 +57,8 @@ static core_net_done_fn s_done;
 // byte every few seconds. The deadline is a timer that shuts the connection's socket,
 // which makes the blocked read return. The socket is followed through the client's own
 // events, so it is never touched after the client closed it. One worker, so one
-// deadline at a time.
+// deadline at a time. The connect has no socket to shut yet: fetch() steps through it
+// and looks at the clock between steps.
 
 static esp_timer_handle_t s_deadline_timer;
 static SemaphoreHandle_t s_deadline_lock;
@@ -173,6 +175,9 @@ static char *read_body(esp_http_client_handle_t c, int64_t announced, size_t cap
     want = want > READ_CHUNK ? READ_CHUNK : want;
     esp_task_wdt_reset();
     int n = esp_http_client_read(c, body + len, (int) want);
+    if (n == -ESP_ERR_HTTP_EAGAIN) {
+      continue;  // nothing whole to read yet; the deadline above ends the wait
+    }
     if (n < 0) {
       r->err = ESP_FAIL;
       free(body);
@@ -188,28 +193,73 @@ static char *read_body(esp_http_client_handle_t c, int64_t announced, size_t cap
   return body;
 }
 
+static bool past_deadline(int64_t start_us) {
+  return esp_timer_get_time() - start_us > DEADLINE_US;
+}
+
+// Connects and sends the request. The client is asynchronous, so the TLS handshake is
+// a run of short steps instead of one blocking call that a server sending a byte every
+// few seconds could hold for hours: the clock is looked at between the steps.
+static esp_err_t open_by_deadline(esp_http_client_handle_t c, int64_t start_us) {
+  while (true) {
+    esp_err_t err = esp_http_client_open(c, 0);
+    if (err != ESP_ERR_HTTP_EAGAIN) {
+      return err;
+    }
+    if (past_deadline(start_us)) {
+      return ESP_ERR_TIMEOUT;
+    }
+    esp_task_wdt_reset();
+    vTaskDelay(pdMS_TO_TICKS(CONNECT_STEP_MS));
+  }
+}
+
+// The response's headers: the body's announced length, 0 for a chunked one, negative
+// on an error or the deadline. An asynchronous client says "again" for a silent link
+// and for a TLS record that has not wholly arrived.
+static int64_t headers_by_deadline(esp_http_client_handle_t c, int64_t start_us) {
+  while (true) {
+    int64_t announced = esp_http_client_fetch_headers(c);
+    if (announced != -ESP_ERR_HTTP_EAGAIN || past_deadline(start_us)) {
+      return announced;
+    }
+    esp_task_wdt_reset();
+  }
+}
+
 // Fetches one URL into r. A body is returned only for status 200.
 static void fetch(const request_t *req, core_net_result_t *r) {
   memset(r, 0, sizeof(*r));
   int64_t start_us = esp_timer_get_time();
   char *body = NULL;
+  // The connection is the worker's own, not one of the client's: the client closes a
+  // connection only once it is through, and a connect that failed or ran out of time
+  // half way would keep its TLS session and socket for good.
+  esp_transport_handle_t tls = esp_transport_ssl_init();
+  if (!tls) {
+    r->err = ESP_ERR_NO_MEM;
+    return;
+  }
+  esp_transport_ssl_crt_bundle_attach(tls, esp_crt_bundle_attach);
   esp_http_client_config_t cfg = {
       .url = req->url,
-      .crt_bundle_attach = esp_crt_bundle_attach,
       .timeout_ms = TIMEOUT_MS,
       .event_handler = core_net_deadline_event,
+      .is_async = true,
+      .transport = tls,
   };
   esp_http_client_handle_t c = esp_http_client_init(&cfg);
   if (!c) {
+    esp_transport_destroy(tls);
     r->err = ESP_FAIL;
     return;
   }
   core_net_deadline_start(DEADLINE_US);
-  r->err = esp_http_client_open(c, 0);
+  r->err = open_by_deadline(c, start_us);
   if (r->err != ESP_OK) {
     goto done;
   }
-  int64_t announced = esp_http_client_fetch_headers(c);
+  int64_t announced = headers_by_deadline(c, start_us);
   r->status = esp_http_client_get_status_code(c);
   if (r->status != 200) {
     ESP_LOGW(TAG, "HTTP %d", r->status);
@@ -228,7 +278,9 @@ done:
   }
   r->body = body;
   esp_http_client_close(c);
+  esp_transport_close(tls);  // what a connect that never got through left open
   esp_http_client_cleanup(c);
+  esp_transport_destroy(tls);
 }
 
 // The parser runs here, on the worker, so the UI loop never holds a body or a

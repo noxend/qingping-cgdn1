@@ -26,6 +26,9 @@
 // One step of it: the connect and the image's first bytes, or one read of the body.
 // Under the task watchdog's minute, which a server sending a byte every few seconds
 // would otherwise outlast inside a single read.
+// Ceiling: not during the TLS handshake, which esp_https_ota runs as one blocking call
+// with no socket to shut. A server that drips it there ends in a watchdog restart, once
+// per install; a download written on the request's stepwise connect would lift it.
 #define STEP_DEADLINE_US (30LL * 1000 * 1000)
 #define TOO_SLOW "the server answered too slowly"
 #define HASH_CHUNK 4096
